@@ -81,6 +81,12 @@ const NAME_BACKGROUND_1 =
   `,${appendClassStart('Tabs-container,EpisodeList-sectionItem')}`;
 
 /** 使用背景色2的元素名称 */
+/**
+ * 开头的 header 对应新版知乎顶部导航条。
+ * 注意：dark() 里的 appendPrefix 按逗号朴素切分，NAME_BACKGROUND_1 以 `]` 结尾，
+ * `}` 后紧跟 header 且无逗号，因此 header 会落在无前缀位置、以裸选择器生效。
+ * 这是有意保留的：暗色下靠它把顶部条白底改为主题色，避免白底白字。
+ */
 const NAME_BACKGROUND_2 =
   `header,.${CLASS_MESSAGE}` +
   `,.zhuanlan .Post-Row-Content .Post-Row-Content-left,.zhuanlan .Post-content .ContentItem-actions,.zhuanlan .Column-EmptyCard` +
