@@ -4388,12 +4388,13 @@
   var HIDDEN_CARD_MIN_WIDTH = 240;
   var HIDDEN_CARD_MAX_WIDTH = 420;
   var HIDDEN_CARD_MIN_HEIGHT = 72;
-  var HIDDEN_CARD_MAX_HEIGHT = 520;
+  var HIDDEN_CARD_MAX_HEIGHT = 640;
   var HIDDEN_CARD_MAX_DEPTH_CLASS = 6;
   var HIDDEN_CARD_MAX_DEPTH = 4;
   var HIDDEN_CARD_ROOT_SELECTOR = ".Topstory-container";
+  var HIDDEN_CARD_ROOT_SELECTOR_FALLBACK = ".Topstory";
   var HIDDEN_CARD_TITLE_SELECTOR = "div,span,h2,h3";
-  var HIDDEN_CARD_CLASS_NAME_REG = /(^|\s)([A-Za-z-]*Card)(\s|$)/;
+  var HIDDEN_CARD_CLASS_NAME_REG = /(^|\s)((?![A-Za-z-]*Right)[A-Za-z-]*Card)(\s|$)/;
   var clearHiddenCardsByTitle = () => {
     try {
       document.querySelectorAll(`[${HIDDEN_BY_TITLE_ATTR}]`).forEach((node) => {
@@ -4406,7 +4407,9 @@
   var isCardContainer = (el) => {
     try {
       const cls = el.getAttribute("class") || "";
-      return HIDDEN_CARD_CLASS_NAME_REG.test(cls);
+      if (!HIDDEN_CARD_CLASS_NAME_REG.test(cls)) return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width >= HIDDEN_CARD_MIN_WIDTH && rect.width <= HIDDEN_CARD_MAX_WIDTH && rect.height <= HIDDEN_CARD_MAX_HEIGHT;
     } catch {
       return false;
     }
@@ -4430,15 +4433,24 @@
     }
     return null;
   };
-  var syncHiddenCardsByTitle = async () => {
+  var loggedZeroHit = false;
+  var syncHiddenCardsByTitle = async (forceResetLog = false) => {
     try {
+      if (forceResetLog) loggedZeroHit = false;
       const config = await myStorage.getConfig();
-      const root = dom(HIDDEN_CARD_ROOT_SELECTOR) || dom(".Topstory") || dom(".App-main") || document.body;
-      if (!root) return;
       const needHide = Object.keys(HIDDEN_CARD_TITLE_MAP).some((key) => config[key]);
       const hasMarked = !!document.querySelector(`[${HIDDEN_BY_TITLE_ATTR}]`);
       if (!needHide && !hasMarked) return;
       clearHiddenCardsByTitle();
+      if (!needHide) return;
+      const root = dom(HIDDEN_CARD_ROOT_SELECTOR) || dom(HIDDEN_CARD_ROOT_SELECTOR_FALLBACK);
+      if (!root) {
+        if (!loggedZeroHit) {
+          loggedZeroHit = true;
+          fnLog("按标题隐藏未命中：未找到主页容器 .Topstory-container / .Topstory，需要补充选择器");
+        }
+        return;
+      }
       const titles = /* @__PURE__ */ new Set();
       Object.keys(HIDDEN_CARD_TITLE_MAP).forEach((key) => {
         if (!config[key]) return;
@@ -4456,7 +4468,10 @@
         card.style.setProperty("display", "none", "important");
         hitCount++;
       });
-      if (!hitCount) fnLog("按标题隐藏未命中：可能在 .Topstory-container 外，需要补充选择器");
+      if (!hitCount && !loggedZeroHit) {
+        loggedZeroHit = true;
+        fnLog("按标题隐藏未命中：可能在 .Topstory-container 外，需要补充选择器");
+      }
     } catch {
     }
   };
@@ -5530,7 +5545,7 @@
     }
     if (/^hidden/.test(name)) {
       appendHiddenStyle();
-      syncHiddenCardsByTitle().catch(() => void 0);
+      syncHiddenCardsByTitle(true).catch(() => void 0);
       return;
     }
     if (doCssVersion.includes(name)) {

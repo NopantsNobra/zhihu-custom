@@ -46,18 +46,23 @@ const HIDDEN_CARD_MIN_WIDTH = 240;
 const HIDDEN_CARD_MAX_WIDTH = 420;
 /** 卡片容器高度下界（排除标题行，实测标题行约 40） */
 const HIDDEN_CARD_MIN_HEIGHT = 72;
-/** 卡片容器高度上界（实测推荐关注最多 6 个用户约 520；右栏容器常 > 700，仍有安全距离） */
-const HIDDEN_CARD_MAX_HEIGHT = 520;
+/** 卡片容器高度上界（实测推荐关注最多 6 个用户约 520，此处留足余量；右栏容器常 > 700） */
+const HIDDEN_CARD_MAX_HEIGHT = 640;
 /** 类名判据的最大上溯层数（标题到卡片之间可能隔几层包装） */
 const HIDDEN_CARD_MAX_DEPTH_CLASS = 6;
 /** 尺寸兜底判据的最大上溯层数 */
 const HIDDEN_CARD_MAX_DEPTH = 4;
 /** 主页列表容器，查找范围只限定在其内部 */
 const HIDDEN_CARD_ROOT_SELECTOR = '.Topstory-container';
+/** 主页容器的降级名（仅用于知乎改版改容器类名，不用于跨页面） */
+const HIDDEN_CARD_ROOT_SELECTOR_FALLBACK = '.Topstory';
 /** 可能出现卡片标题的元素标签，缩小遍历范围 */
 const HIDDEN_CARD_TITLE_SELECTOR = 'div,span,h2,h3';
-/** 卡片容器类名：以 Card 结尾且独立成词（排除 Card-header / Card-body 这类子块） */
-const HIDDEN_CARD_CLASS_NAME_REG = /(^|\s)([A-Za-z-]*Card)(\s|$)/;
+/**
+ * 卡片容器类名：以 Card 结尾且独立成词（排除 Card-header / Card-body 这类子块）。
+ * 负向断言排除含 `Right` 的词元（如右栏容器 `New-RightCard`），避免把整列当卡片。
+ */
+const HIDDEN_CARD_CLASS_NAME_REG = /(^|\s)((?![A-Za-z-]*Right)[A-Za-z-]*Card)(\s|$)/;
 
 /**
  * 清除上一轮按标题隐藏的标记与行内样式。
@@ -77,15 +82,23 @@ const clearHiddenCardsByTitle = () => {
 };
 
 /**
- * 卡片容器判定：类名以 Card 结尾且独立成词才认。
+ * 卡片容器判定：类名以 Card 结尾且独立成词才认，并叠一层几何安全网。
  *
  * 这样能命中 `KfeCollection-CreateSaltCard`，但排除 `Card-header` / `Card-body` 这类子块；
- * 右栏容器类名形如 `SideColumn`，不含 Card，天然不会被误伤。
+ * 右栏容器类名形如 `SideColumn` / `New-RightCard`，前者不含 Card、后者被 `Right` 词元排除。
+ * 几何安全网（宽度区间 + 高度上限）用于兜住任何「类名像卡片但体积是整列」的容器，
+ * 与尺寸兜底判据共用同一组阈值，因此不会引入新的漏隐藏场景。
  */
 const isCardContainer = (el: HTMLElement): boolean => {
   try {
     const cls = el.getAttribute('class') || '';
-    return HIDDEN_CARD_CLASS_NAME_REG.test(cls);
+    if (!HIDDEN_CARD_CLASS_NAME_REG.test(cls)) return false;
+    const rect = el.getBoundingClientRect();
+    return (
+      rect.width >= HIDDEN_CARD_MIN_WIDTH &&
+      rect.width <= HIDDEN_CARD_MAX_WIDTH &&
+      rect.height <= HIDDEN_CARD_MAX_HEIGHT
+    );
   } catch {
     return false;
   }
@@ -95,7 +108,7 @@ const isCardContainer = (el: HTMLElement): boolean => {
  * 从命中的标题元素向上查找卡片容器。
  *
  * 类名判据优先（比尺寸可靠，且天然排除右栏）；类名失效时退回尺寸判据兜底：
- * 宽度区间过滤量级，高度 `>= 60` 排除纯标题行、`<= 600` 排除右栏容器。
+ * 宽度区间过滤量级，高度 `>= 72` 排除标题行、`<= 520` 排除右栏容器。
  * 两轮都找不到返回 null（宁可不隐藏，也不误伤右栏等大容器）。
  */
 const findHiddenCardContainer = (titleNode: HTMLElement): HTMLElement | null => {
@@ -125,6 +138,9 @@ const findHiddenCardContainer = (titleNode: HTMLElement): HTMLElement | null => 
   return null;
 };
 
+/** 零命中日志只提示一次，避免非主页每次重任务刷屏 */
+let loggedZeroHit = false;
+
 /**
  * 按卡片标题文本兜底隐藏主页右栏卡片。
  *
@@ -133,13 +149,15 @@ const findHiddenCardContainer = (titleNode: HTMLElement): HTMLElement | null => 
  *
  * 该函数挂在重任务节流点上（约每 1.5s 一次），因此做了零成本短路：
  * 既不需要隐藏、也没有上一轮留下的标记时，只做一次 querySelector 就返回。
+ *
+ * @param forceResetLog 为 true 时重置零命中日志的去重标记（配置变更后重新判定时用，
+ *   避免一次失败后永远不再提示）
  */
-export const syncHiddenCardsByTitle = async (): Promise<void> => {
+export const syncHiddenCardsByTitle = async (forceResetLog = false): Promise<void> => {
   try {
+    if (forceResetLog) loggedZeroHit = false;
+
     const config = await myStorage.getConfig();
-    // 兜底链：知乎改版可能导致某个容器类名消失，逐级降级避免整体静默失效
-    const root = dom(HIDDEN_CARD_ROOT_SELECTOR) || dom('.Topstory') || dom('.App-main') || document.body;
-    if (!root) return;
 
     // 零成本短路：默认（两项均未勾选）状态下无需全量遍历
     const needHide = Object.keys(HIDDEN_CARD_TITLE_MAP).some((key) => config[key]);
@@ -148,6 +166,19 @@ export const syncHiddenCardsByTitle = async (): Promise<void> => {
     if (!needHide && !hasMarked) return;
 
     clearHiddenCardsByTitle();
+
+    // 非主页只看「清残留」，不做遍历：本功能只针对主页右栏，避免全站语义外溢与白跑遍历
+    if (!needHide) return;
+
+    // 只认主页容器；降级名仅用于知乎改版改容器类名，不降级到 .App-main / body
+    const root = dom(HIDDEN_CARD_ROOT_SELECTOR) || dom(HIDDEN_CARD_ROOT_SELECTOR_FALLBACK);
+    if (!root) {
+      if (!loggedZeroHit) {
+        loggedZeroHit = true;
+        fnLog('按标题隐藏未命中：未找到主页容器 .Topstory-container / .Topstory，需要补充选择器');
+      }
+      return;
+    }
 
     // 汇总当前配置下需要隐藏的标题文本
     const titles = new Set<string>();
@@ -171,8 +202,11 @@ export const syncHiddenCardsByTitle = async (): Promise<void> => {
       hitCount++;
     });
 
-    // 只在开启隐藏时提示零命中，帮助定位容器选择器失效（未开启时上面已 return，不会刷屏）
-    if (!hitCount) fnLog('按标题隐藏未命中：可能在 .Topstory-container 外，需要补充选择器');
+    // 零命中只提示一次：帮助定位容器选择器失效，同时避免每次重任务刷屏
+    if (!hitCount && !loggedZeroHit) {
+      loggedZeroHit = true;
+      fnLog('按标题隐藏未命中：可能在 .Topstory-container 外，需要补充选择器');
+    }
   } catch {
     // 标题兜底逻辑异常不能影响脚本其他功能
   }
