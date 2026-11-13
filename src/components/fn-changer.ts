@@ -5,7 +5,7 @@ import { appendHiddenStyle, syncHiddenCardsByTitle } from './hidden';
 import { previewGIF } from './image';
 import { myListenList } from './listen-list';
 import { changeICO, changeTitle } from './page-title';
-import { mySize } from './size';
+import { mySize, syncHomeSidebarCollapse } from './size';
 import { onChangeSuspensionSwitch, suspensionPickupAttribute } from './suspension';
 import { addArticleTime, addQuestionTime } from './time';
 
@@ -143,10 +143,12 @@ export const fnChanger = async (ev: HTMLInputElement) => {
   }
 
   if (/^hidden/.test(name)) {
-    appendHiddenStyle();
-    // 样式表重建后同步清理/重算行内隐藏，否则取消勾选后行内 !important 仍会压住样式表，卡片不会恢复
+    // 三件事按序做完再让浏览器绘制：重建隐藏样式 → 重算标题兜底 → 重判右栏折叠。
+    // 之前是并行 fire-and-forget，样式表与折叠类可能分两帧落地，切换时会闪一下空白。
+    await appendHiddenStyle();
     // forceResetLog=true：配置变更属于重新判定场景，允许再提示一次零命中
-    syncHiddenCardsByTitle(true).catch(() => undefined);
+    await syncHiddenCardsByTitle(true);
+    await syncHomeSidebarCollapse();
     return;
   }
   if (doCssVersion.includes(name)) {

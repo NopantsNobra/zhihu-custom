@@ -6,7 +6,7 @@ import { createHTMLHiddenConfig, syncHiddenCardsByTitle } from '../../components
 import { createHTMLNotInterestedList } from '../../components/not-interested';
 import { createHTMLTitleICOChange } from '../../components/page-title';
 import { createHTMLMySelect } from '../../components/select';
-import { createHTMLSizeSetting } from '../../components/size';
+import { createHTMLSizeSetting, syncHomeSidebarCollapse } from '../../components/size';
 import { store } from '../../store';
 import { dom, domC } from '../../tools';
 import { INNER_HTML } from '../../web-resources';
@@ -50,6 +50,9 @@ export const initHTML = () => {
   syncHiddenCardsByTitle().catch(() => undefined);
   // 首次执行可能早于右栏卡片完成布局，补一次延迟执行（函数幂等，重复执行只会重算同一批节点）
   setTimeout(() => syncHiddenCardsByTitle().catch(() => undefined), 1500);
+  // 右栏九个模块全部隐藏时收掉整列；函数自带一次性观察器，容器晚于面板渲染时也能当帧补上
+  syncHomeSidebarCollapse().catch(() => undefined);
+  setTimeout(() => syncHomeSidebarCollapse().catch(() => undefined), 1500);
 };
 
 /** 添加个人主页跳转 */

@@ -1,5 +1,6 @@
 import { canCopy } from '../components/copy';
 import { syncHiddenCardsByTitle } from '../components/hidden';
+import { syncHomeSidebarCollapse } from '../components/size';
 import { previewGIF } from '../components/image';
 import { fnJustNumberInAction } from '../components/just-number';
 import { initLinkChanger } from '../components/link';
@@ -12,7 +13,7 @@ import { myCollectionExport } from '../components/print';
 import { changeSizeBeforeResize } from '../components/size';
 import { myListenUserHomeList } from '../components/user-home';
 import { HTML_HOOTS } from '../misc';
-import { dom, domById, myStorage, pathnameHasFn, throttle, windowResize } from '../tools';
+import { dom, domById, myStorage, pathnameHasFn, syncHasFallbackClasses, throttle, windowResize } from '../tools';
 import { initImagePreview } from './init-image-preview';
 
 const FAST_TRIGGER_DELAY = 120;
@@ -125,6 +126,9 @@ async function runHeavyTasks() {
     changeSizeBeforeResize();
     // 无限滚动会重新渲染右栏卡片，重任务节流点重新做一次按标题兜底隐藏
     syncHiddenCardsByTitle().catch(() => undefined);
+    // 动态加载/回退路由后重新判定右栏是否需要折叠，并刷新 :has() 降级类名
+    syncHasFallbackClasses();
+    syncHomeSidebarCollapse().catch(() => undefined);
     pathnameHasFn({
       collection: () => myCollectionExport.init(),
     });

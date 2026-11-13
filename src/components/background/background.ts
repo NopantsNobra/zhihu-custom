@@ -54,6 +54,10 @@ export const myBackground = {
     const isRegular = !useDark && themeLight === EThemeLight.默认;
 
     const domHTML = dom('html')!;
+    // color-scheme 必须作用于根元素（html / :root），浏览器才会同步滚动条、表单控件与默认画布。
+    // 放在背景样式串最前面、不经过 appendPrefix：否则会被改写成 `html[data-theme=dark] :root` 而永不命中。
+    // 值跟随主题，切换主题时会重新执行 init() 覆盖整张样式表。
+    const colorSchemeCss = `:root{color-scheme:${useDark ? 'dark' : 'light'}}`;
     // 先落主题属性再注入样式：appendPrefix 修复后，深色规则统一带 html[data-theme=dark] 前缀，
     // 若样式先于属性写入，首帧会短暂按浅色渲染（顶部白底 + 白字）。
     if (useDark) {
@@ -68,7 +72,8 @@ export const myBackground = {
 
     fnAppendStyle(
       'CTZ_STYLE_BACKGROUND',
-      isRegular ? '' : (useDark ? this.dark(themeDark) : this.light(themeLight)) + fnReturnStr(`.ContentItem-title, body{color: ${colorText1}!important;}`, !!colorText1),
+      colorSchemeCss +
+        (isRegular ? '' : (useDark ? this.dark(themeDark) : this.light(themeLight)) + fnReturnStr(`.ContentItem-title, body{color: ${colorText1}!important;}`, !!colorText1)),
     );
   },
   /** 浅色模式 */

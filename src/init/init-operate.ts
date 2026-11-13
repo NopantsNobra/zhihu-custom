@@ -5,11 +5,12 @@ import { fnChanger } from '../components/fn-changer';
 import { echoHistory } from '../components/history';
 import { buttonConfirmPageTitle, buttonResetPageTitle } from '../components/page-title';
 import { myPreview } from '../components/preview';
+import { runSelfCheck } from '../components/self-check';
 import { moveAndOpen } from '../components/suspension/move';
 import { CONFIG_DEFAULT, CONFIG_SIMPLE } from '../config';
 import { IKeyofHistory } from '../config/types';
 import { CLASS_INPUT_CHANGE, CLASS_INPUT_CLICK } from '../misc';
-import { dom, domA, domById, domC, formatTime, inputImportFile, myStorage } from '../tools';
+import { dom, domA, domById, domC, formatTime, inputImportFile, message, myStorage } from '../tools';
 import { initRootEvent } from './init-top-event-listener';
 
 /** 加载设置弹窗绑定方法 */
@@ -119,6 +120,10 @@ const myButtonOperation: Record<string, Function> = {
     setTimeout(() => {
       location.reload();
     }, 300);
+  },
+  // 宽度自检 / 隐藏自检（结果见 Console）
+  selfCheck: () => {
+    runSelfCheck().catch(() => message('自检执行失败，请查看 Console'));
   },
   // 自定义样式
   styleCustom: async function () {

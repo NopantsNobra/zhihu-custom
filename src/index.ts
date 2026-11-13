@@ -1,4 +1,4 @@
-import { checkThemeDarkOrLight, myBackground } from './components/background';
+import { checkThemeDarkOrLight, myBackground, onUseThemeDark } from './components/background';
 import { interceptResponseForBlocked, topBlockUser } from './components/black-list';
 import { initBlockedWords } from './components/blocked-words';
 import { canCopy, eventCopy } from './components/copy';
@@ -20,7 +20,7 @@ import { myPageFilterSetting } from './components/page-filter-setting';
 import { changeICO, changeTitle, myCachePageTitle } from './components/page-title';
 import { myCollectionExport, printArticle, printPeopleAnswer, printPeopleArticles } from './components/print';
 import { closeAllSelect } from './components/select';
-import { changeSizeBeforeResize, mySize } from './components/size';
+import { changeSizeBeforeResize, mySize, syncHomeSidebarCollapse } from './components/size';
 import { initSuspensionSwitch, suspensionPickupAttribute } from './components/suspension';
 import { addArticleTime, addQuestionTime } from './components/time';
 import { myListenUserHomeList } from './components/user-home';
@@ -35,7 +35,7 @@ import { doReadMore } from './init/init-top-event-listener';
 import { needRedirect } from './init/redirect';
 import { EXTRA_CLASS_HTML, HTML_HOOTS, ID_EXTRA_DIALOG } from './misc';
 import { store } from './store';
-import { dom, domById, domP, fnAppendStyle, fnLog, formatDataToHump, interceptionResponse, isSafari, isSupportHasSelector, mouseEventClick, myStorage, pathnameHasFn, throttle } from './tools';
+import { dom, domById, domP, fnAppendStyle, fnLog, formatDataToHump, interceptionResponse, isSafari, isSupportHasSelector, mouseEventClick, myStorage, pathnameHasFn, syncHasFallbackClasses, throttle } from './tools';
 import { IZhihuAnswerTarget } from './types/zhihu/zhihu-answer.type';
 import { INNER_CSS } from './web-resources';
 
@@ -183,6 +183,16 @@ import { INNER_CSS } from './web-resources';
       myCustomStyle.init();
       initBlockedWords();
       initResizeObserver();
+      // 自动模式下 isDark() 读取 prefers-color-scheme；系统主题可以在页面运行期间随时变化，
+      // 必须监听 change 重算背景、:root color-scheme 与尺寸样式，否则深色页面会残留浅色原生 UI。
+      const mediaDark = window.matchMedia('(prefers-color-scheme: dark)');
+      const onSchemeChange = () => {
+        myBackground.init();
+        mySize.change();
+        onUseThemeDark();
+      };
+      if (typeof mediaDark.addEventListener === 'function') mediaDark.addEventListener('change', onSchemeChange);
+      else mediaDark.addListener(onSchemeChange);
       myCtzTypeOperation.init();
       echoHistory();
       // initCacheHeader();
@@ -206,8 +216,9 @@ import { INNER_CSS } from './web-resources';
       }
     }
 
+    syncHasFallbackClasses();
     if (!isSupportHasSelector()) {
-      fnLog('当前浏览器不支持 CSS :has()，页面尺寸与主页布局修复不会生效。请升级到 Chrome/Edge 105+、Firefox 121+ 或 Safari 15.4+');
+      fnLog('当前浏览器不支持 CSS :has()，已启用 @supports 类名回退：宽度与主页布局补丁仍可生效；若个别细节缺失，可用面板「运行自检」定位');
     }
 
     fnLog(`加载完毕, 加载时长: ${Math.floor((performance.now() - T0) / 10) / 100}s, 可使用 shift + . 或点击左侧眼睛按钮唤起修改器弹窗`);
@@ -243,6 +254,9 @@ import { INNER_CSS } from './web-resources';
     prevHash = location.hash;
     prevPathname = location.pathname;
     historyToChangePathname();
+    // SPA 换页后页面类型与右栏 DOM 都会变，重算降级类名与折叠状态
+    syncHasFallbackClasses();
+    syncHomeSidebarCollapse().catch(() => undefined);
     // 重置监听起点
     myListenList.reset();
     myListenSearchListItem.reset();

@@ -245,6 +245,38 @@ export const mySize = {
      * 这里把 .Topstory-container 反向拉宽 100px 再居中，让主列在视口内居中。
      * 100px 是当前版本的 rail 常量，知乎调整导航宽度时需要同步这个值。
      */
-    return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}html:has(.QuestionPage) nav.css-7guej9{display:none!important}html:has(.QuestionPage) .QuestionPage,html:has(.QuestionPage) .Question-mainColumn,html:has(.QuestionPage) .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}` + `html:has(.QuestionPage) :has(.App-main),html:has(.QuestionPage) :has(>.QuestionPage){width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}html:has(.QuestionPage) .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}html:has(.QuestionPage) .QuestionPage>:has(.Question-mainColumn){width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}html:has(.QuestionPage) .QuestionPage :has(>.Question-mainColumn){width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}html:has(.QuestionPage) .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}`;
+    /**
+     * 主页右栏九项全部隐藏时把整列移出布局。
+     * 折叠态必须同时撤掉上面的 100px 反向拉宽，否则容器比视口宽 100px，会出现横向溢出。
+     * 主列用 flex 撑满剩余空间，但保留「列表宽度」设定值作为上限（默认 1000px）并居中，
+     * 与回答页观感一致：没有右栏占位、内容居中铺开，且宽度滑块仍然有效。
+     */
+    const xxxHomeNoSidebar =
+      `html.ctz-home-no-sidebar .Topstory-container{width:100%!important;max-width:100%!important;margin-left:0!important;box-sizing:border-box!important}` +
+      `html.ctz-home-no-sidebar .ctz-home-side-column{display:none!important}` +
+      `html.ctz-home-no-sidebar .Topstory-mainColumn{width:auto!important;max-width:${versionSizeHome}!important;min-width:0!important;flex:1 1 auto!important;margin:0 auto!important}`;
+
+    /**
+     * :has() 降级（Firefox < 121 等）。
+     * 上面的补丁有多条在选择器**中部**使用 :has()，老浏览器会把整条规则丢弃，
+     * 只把根部 html:has(...) 换成类名救不回来，因此整体给一份不含 :has() 的等价规则，
+     * 用 @supports not selector(:has(*)) 限定生效范围。
+     * 所需类名由 syncHasFallbackClasses 维护：ctz-home-page / ctz-question-page /
+     * ctz-home-rail / ctz-question-shell / ctz-question-col。
+     */
+    const xxxHasFallback =
+      `@supports not selector(:has(*)){` +
+      `html.ctz-home-page .ctz-home-rail{display:none!important}` +
+      `html.ctz-home-page .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}` +
+      `html.ctz-question-page nav.css-7guej9{display:none!important}` +
+      `html.ctz-question-page .QuestionPage,html.ctz-question-page .Question-mainColumn,html.ctz-question-page .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}` +
+      `html.ctz-question-page .ctz-question-shell{width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}` +
+      `html.ctz-question-page .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}` +
+      `html.ctz-question-page .QuestionPage>.ctz-question-col{width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}` +
+      `html.ctz-question-page .QuestionPage .ctz-question-col{width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}` +
+      `html.ctz-question-page .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}` +
+      `}`;
+
+    return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}html:has(.QuestionPage) nav.css-7guej9{display:none!important}html:has(.QuestionPage) .QuestionPage,html:has(.QuestionPage) .Question-mainColumn,html:has(.QuestionPage) .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}` + `html:has(.QuestionPage) :has(.App-main),html:has(.QuestionPage) :has(>.QuestionPage){width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}html:has(.QuestionPage) .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}html:has(.QuestionPage) .QuestionPage>:has(.Question-mainColumn){width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}html:has(.QuestionPage) .QuestionPage :has(>.Question-mainColumn){width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}html:has(.QuestionPage) .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}` + xxxHomeNoSidebar + xxxHasFallback;
   },
 };
