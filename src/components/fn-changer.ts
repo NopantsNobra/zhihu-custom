@@ -1,7 +1,7 @@
 import { dom, domById, myStorage } from '../tools';
 import { INPUT_NAME_THEME, INPUT_NAME_THEME_DARK, INPUT_NAME_ThEME_LIGHT, myBackground, onUseThemeDark } from './background';
 import { changeReplaceBlockUserSwitchDisabled } from './black-list';
-import { appendHiddenStyle } from './hidden';
+import { appendHiddenStyle, syncHiddenCardsByTitle } from './hidden';
 import { previewGIF } from './image';
 import { myListenList } from './listen-list';
 import { changeICO, changeTitle } from './page-title';
@@ -144,6 +144,8 @@ export const fnChanger = async (ev: HTMLInputElement) => {
 
   if (/^hidden/.test(name)) {
     appendHiddenStyle();
+    // 样式表重建后同步清理/重算行内隐藏，否则取消勾选后行内 !important 仍会压住样式表，卡片不会恢复
+    syncHiddenCardsByTitle().catch(() => undefined);
     return;
   }
   if (doCssVersion.includes(name)) {

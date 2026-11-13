@@ -1,4 +1,5 @@
 import { canCopy } from '../components/copy';
+import { syncHiddenCardsByTitle } from '../components/hidden';
 import { previewGIF } from '../components/image';
 import { fnJustNumberInAction } from '../components/just-number';
 import { initLinkChanger } from '../components/link';
@@ -122,6 +123,8 @@ async function runHeavyTasks() {
     fnJustNumberInAction();
     canCopy();
     changeSizeBeforeResize();
+    // 无限滚动会重新渲染右栏卡片，重任务节流点重新做一次按标题兜底隐藏
+    syncHiddenCardsByTitle().catch(() => undefined);
     pathnameHasFn({
       collection: () => myCollectionExport.init(),
     });

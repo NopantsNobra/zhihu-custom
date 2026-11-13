@@ -264,12 +264,12 @@ const HIDDEN_ITEM_LIST: IHiddenItem = {
       {
         label: '盐选作者平台',
         value: 'hiddenYanXuanWriter',
-        css: '.KfeCollection-CreateSaltCard{display:none!important;}',
+        css: '.KfeCollection-CreateSaltCard,[class*="CreateSaltCard"],[class*="SaltCard"]{display:none!important;}',
       },
       {
         label: '推荐关注',
         value: 'hiddenHomeRecommendFollow',
-        css: '.Topstory .css-1iaxl4o{display: none;}',
+        css: '.Topstory .css-1iaxl4o,.Topstory [class*="RecommendFollow"],[class*="RecommendFollow"]{display:none!important;}',
       },
       {
         label: '分类圆桌',

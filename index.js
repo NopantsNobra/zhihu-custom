@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         知乎修改器🤜持续更新🤛努力实现功能最全的知乎配置插件
 // @namespace    http://tampermonkey.net/
-// @version      5.23
+// @version      5.24
 // @description  知乎高性能模式，页面模块自定义隐藏，列表及回答内容过滤，保存浏览历史记录，推荐页内容缓存，一键邀请，复制代码块删除版权信息，列表种类和关键词强过滤并自动调用「不感兴趣」接口，屏蔽用户回答，视频下载，设置自动收起所有长回答或自动展开所有回答，移除登录提示弹窗，设置过滤故事档案局和盐选科普回答等知乎官方账号回答，手动调节文字大小，切换主题及深色模式调整，隐藏知乎热搜，列表添加标签种类，去除广告，设置购买链接显示方式，收藏夹内容、回答、文章导出为PDF，一键移除所有屏蔽选项，外链直接打开，键盘左右切换预览图片，快捷键收起时修正定位，更多功能请在插件里体验...
 // @compatible   edge Violentmonkey
 // @compatible   edge Tampermonkey
@@ -3825,12 +3825,12 @@
         {
           label: "盐选作者平台",
           value: "hiddenYanXuanWriter",
-          css: ".KfeCollection-CreateSaltCard{display:none!important;}"
+          css: '.KfeCollection-CreateSaltCard,[class*="CreateSaltCard"],[class*="SaltCard"]{display:none!important;}'
         },
         {
           label: "推荐关注",
           value: "hiddenHomeRecommendFollow",
-          css: ".Topstory .css-1iaxl4o{display: none;}"
+          css: '.Topstory .css-1iaxl4o,.Topstory [class*="RecommendFollow"],[class*="RecommendFollow"]{display:none!important;}'
         },
         {
           label: "分类圆桌",
@@ -4379,6 +4379,86 @@
       hiddenContent += `.css-dvccr2{display: none!important;}`;
     }
     fnAppendStyle("CTZ_STYLE_HIDDEN", hiddenContent);
+  };
+  var HIDDEN_CARD_TITLE_MAP = {
+    hiddenYanXuanWriter: ["盐言作者平台", "盐选作者平台"],
+    hiddenHomeRecommendFollow: ["推荐关注"]
+  };
+  var HIDDEN_BY_TITLE_ATTR = "data-ctz-hidden-by-title";
+  var HIDDEN_CARD_MIN_WIDTH = 240;
+  var HIDDEN_CARD_MAX_WIDTH = 420;
+  var HIDDEN_CARD_MIN_HEIGHT = 72;
+  var HIDDEN_CARD_MAX_HEIGHT = 520;
+  var HIDDEN_CARD_MAX_DEPTH_CLASS = 6;
+  var HIDDEN_CARD_MAX_DEPTH = 4;
+  var HIDDEN_CARD_ROOT_SELECTOR = ".Topstory-container";
+  var HIDDEN_CARD_TITLE_SELECTOR = "div,span,h2,h3";
+  var HIDDEN_CARD_CLASS_NAME_REG = /(^|\s)([A-Za-z-]*Card)(\s|$)/;
+  var clearHiddenCardsByTitle = () => {
+    try {
+      document.querySelectorAll(`[${HIDDEN_BY_TITLE_ATTR}]`).forEach((node) => {
+        node.style.removeProperty("display");
+        node.removeAttribute(HIDDEN_BY_TITLE_ATTR);
+      });
+    } catch {
+    }
+  };
+  var isCardContainer = (el) => {
+    try {
+      const cls = el.getAttribute("class") || "";
+      return HIDDEN_CARD_CLASS_NAME_REG.test(cls);
+    } catch {
+      return false;
+    }
+  };
+  var findHiddenCardContainer = (titleNode) => {
+    let current = titleNode.parentElement;
+    let depth = 0;
+    while (current && depth < HIDDEN_CARD_MAX_DEPTH_CLASS) {
+      if (isCardContainer(current)) return current;
+      current = current.parentElement;
+      depth++;
+    }
+    current = titleNode.parentElement;
+    depth = 0;
+    while (current && depth < HIDDEN_CARD_MAX_DEPTH) {
+      const rect = current.getBoundingClientRect();
+      const isCard = rect.width >= HIDDEN_CARD_MIN_WIDTH && rect.width <= HIDDEN_CARD_MAX_WIDTH && rect.height >= HIDDEN_CARD_MIN_HEIGHT && rect.height <= HIDDEN_CARD_MAX_HEIGHT;
+      if (isCard) return current;
+      current = current.parentElement;
+      depth++;
+    }
+    return null;
+  };
+  var syncHiddenCardsByTitle = async () => {
+    try {
+      const config = await myStorage.getConfig();
+      const root = dom(HIDDEN_CARD_ROOT_SELECTOR) || dom(".Topstory") || dom(".App-main") || document.body;
+      if (!root) return;
+      const needHide = Object.keys(HIDDEN_CARD_TITLE_MAP).some((key) => config[key]);
+      const hasMarked = !!document.querySelector(`[${HIDDEN_BY_TITLE_ATTR}]`);
+      if (!needHide && !hasMarked) return;
+      clearHiddenCardsByTitle();
+      const titles = /* @__PURE__ */ new Set();
+      Object.keys(HIDDEN_CARD_TITLE_MAP).forEach((key) => {
+        if (!config[key]) return;
+        HIDDEN_CARD_TITLE_MAP[key].forEach((title) => titles.add(title));
+      });
+      if (!titles.size) return;
+      let hitCount = 0;
+      root.querySelectorAll(HIDDEN_CARD_TITLE_SELECTOR).forEach((el) => {
+        if (el.children.length > 1) return;
+        const text = el.textContent?.trim();
+        if (!text || !titles.has(text)) return;
+        const card = findHiddenCardContainer(el);
+        if (!card || card.hasAttribute(HIDDEN_BY_TITLE_ATTR)) return;
+        card.setAttribute(HIDDEN_BY_TITLE_ATTR, "1");
+        card.style.setProperty("display", "none", "important");
+        hitCount++;
+      });
+      if (!hitCount) fnLog("按标题隐藏未命中：可能在 .Topstory-container 外，需要补充选择器");
+    } catch {
+    }
   };
   var createHTMLHiddenConfig = (domMain) => {
     dom("#CTZ_HIDDEN", domMain).innerHTML = HIDDEN_ARRAY.map(
@@ -5220,6 +5300,7 @@
     dom("#CTZ_BLACKLIST_COMMON", nDomMain).innerHTML += createHTMLFormBoxSwitch(BLOCKED_USER_COMMON);
     appendHomeLink(nDomMain);
     document.body.appendChild(nDomMain);
+    syncHiddenCardsByTitle().catch(() => void 0);
   };
   var appendHomeLink = (domMain = document.body) => {
     const userInfo = store.getUserInfo();
@@ -5328,6 +5409,7 @@
       fnJustNumberInAction();
       canCopy();
       changeSizeBeforeResize();
+      syncHiddenCardsByTitle().catch(() => void 0);
       pathnameHasFn({
         collection: () => myCollectionExport.init()
       });
@@ -5448,6 +5530,7 @@
     }
     if (/^hidden/.test(name)) {
       appendHiddenStyle();
+      syncHiddenCardsByTitle().catch(() => void 0);
       return;
     }
     if (doCssVersion.includes(name)) {

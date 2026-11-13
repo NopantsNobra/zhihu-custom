@@ -2,7 +2,7 @@ import { createHTMLBackgroundSetting } from '../../components/background';
 import { BLOCKED_USER_COMMON } from '../../components/black-list';
 import { createHTMLRightTitle, initMenu } from '../../components/ctz-dialog';
 import { initFetchInterceptStatus } from '../../components/fetch-intercept-status-change';
-import { createHTMLHiddenConfig } from '../../components/hidden';
+import { createHTMLHiddenConfig, syncHiddenCardsByTitle } from '../../components/hidden';
 import { createHTMLNotInterestedList } from '../../components/not-interested';
 import { createHTMLTitleICOChange } from '../../components/page-title';
 import { createHTMLMySelect } from '../../components/select';
@@ -45,6 +45,9 @@ export const initHTML = () => {
   // echoBlockedContent(nDomMain); // 回填（渲染）黑名单内容应在 echoData 中设置，保证每次打开弹窗都是最新内容
   appendHomeLink(nDomMain);
   document.body.appendChild(nDomMain);
+
+  // 按卡片标题兜底隐藏（类名会随知乎构建变化，初始化后执行一次）
+  syncHiddenCardsByTitle().catch(() => undefined);
 };
 
 /** 添加个人主页跳转 */
