@@ -1,1043 +1,278 @@
-# 知乎修改器，一个可以自定义知乎的脚本
+# 知乎修改器（NopantsNobra 定制分支）
 
-### <a style="color: red;" href="https://github.com/liuyubing233/zhihu-custom/blob/main/Q%26A.md">提问前请先查看问题解答，已存在解答的内容不做回复</a>
+一个运行在桌面浏览器脚本管理器中的知乎用户脚本，通过注入样式、DOM 处理与可选的接口拦截，自定义知乎桌面版页面的显示内容、布局与浏览行为。
 
-[问题解答](https://github.com/liuyubing233/zhihu-custom/blob/main/Q%26A.md)
+| 项目 | 说明 |
+| --- | --- |
+| 版本 | **5.25**（`package.json` 与 `index.js` 头部一致） |
+| 许可证 | MIT |
+| 仓库 | `https://github.com/NopantsNobra/zhihu-custom.git`（私有 fork；本 README 描述的是该分支的当前实现） |
+| 上游 | `liuyubing233/zhihu-custom`，仅作来源说明；上游的文档、发布地址与截图不适用于本分支 |
+| 脚本名 | 知乎修改器🤜持续更新🤛努力实现功能最全的知乎配置插件 |
 
----
+## 快速开始
 
-移动版脚本地址：[GreasyFork](https://greasyfork.org/zh-CN/scripts/488508-%E7%9F%A5%E4%B9%8E%E4%BF%AE%E6%94%B9%E5%99%A8%E7%A7%BB%E5%8A%A8%E7%89%88-%E6%8C%81%E7%BB%AD%E6%9B%B4%E6%96%B0) ｜ [Github](https://github.com/liuyubing233/zhihu-custom-mobile/tree/main)
+### 安装
 
----
+1. 在桌面浏览器安装脚本管理器：**Tampermonkey 或 Violentmonkey 均可**。脚本头的 `@compatible` 同时声明了这两种管理器，不要求必须先安装其中某一个。
+2. 在管理器中新建用户脚本，导入仓库根目录已构建的 `index.js`（也可把文件重命名为 `*.user.js` 后直接拖入管理器安装）。
+3. 启用脚本并刷新知乎页面。脚本在 `@run-at document-start` 阶段注入，无需等待页面完全加载。
+4. 通过页面右下角齿轮按钮、脚本管理器菜单中的「⚙️ 设置」，或 `Shift + .`（美式键盘，即 `>`）打开设置面板。
 
-### 注意事项：
+脚本元信息（取自 `index.js` 头部，由 `build-config/esbuild.build.js` 依据 `package.json` 生成）：
+
+| 字段 | 值 |
+| --- | --- |
+| `@name` | 知乎修改器🤜持续更新🤛努力实现功能最全的知乎配置插件 |
+| `@version` | 5.25 |
+| `@author` / `@license` | lyb233 / MIT |
+| `@match` | `*://*.zhihu.com/*` |
+| `@run-at` | `document-start` |
+| `@grant` | `unsafeWindow`、`GM_info`、`GM_setValue`、`GM_getValue`、`GM.getValue`、`GM.setValue`、`GM.deleteValue`、`GM_registerMenuCommand`（共 8 项） |
+| `@compatible` | `edge` / `chrome` / `firefox` / `safari` × `Violentmonkey` / `Tampermonkey`（共 8 组） |
 
-1. safari 浏览器（苹果浏览器）请删除代码头部的 `// @grant        unsafeWindow` 一行，否则无法正常运行。
+> `@compatible` 是声明性标记，表示作者声明的目标组合，**不是**已逐项真机验证的能力保证。
 
-   ![safari浏览器用户删除内容](https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/safari-use.png)
+### 打开设置面板与快捷键
 
-2. `使用弹窗打开动图` 设置与修改图片类型的脚本或插件冲突，如果有使用修改图片的脚本不要打开此项设置。
-3. 如果遇到知乎页面无法显示数据的情况请尝试关闭接口拦截。
-   ![接口拦截](https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/not-fetch.png)
+| 操作 | 行为 | 代码位置 |
+| --- | --- | --- |
+| 点击右下角齿轮 ⚙︎ | 唤起 / 收起设置抽屉 | `src/index.html` 的 `#CTZ_OPEN_CLOSE` |
+| 脚本管理器菜单「⚙️ 设置」 | 唤起设置抽屉 | `src/index.ts:45` `GM_registerMenuCommand` |
+| `Shift + .`（`>` / `》`） | 唤起设置抽屉；`hotKey` 默认开启，可在「通用」页关闭 | `src/index.ts:313` |
+| `Escape` | 关闭弹窗（含可选关闭评论弹窗） | `src/index.ts:319` |
+| `o` | 对当前焦点所在条目展开阅读全文 | `src/index.ts:329` |
+| `←` / `→` | 在静态图片大图预览中切换上一张 / 下一张 | `src/components/image.ts:115` |
 
-快捷键 >（Shift + .）唤起修改器抽屉, 或鼠标点击页面右下角齿轮按钮唤修改器抽屉。
+主 `keydown` 监听绑在 `window` 上，只比较 `event.key`，**不判断任何修饰键、不调用 `preventDefault`、也不判断焦点元素是否为输入框**。Mac 用户无需为 Ctrl / ⌘ 做额外设置；副作用见「已知限制」。
 
-请先确认已安装 [tampermonkey](https://www.tampermonkey.net/) 脚本管理器后，再安装本助手。
+### 生效方式
 
-[更新日志](https://github.com/liuyubing233/zhihu-custom/blob/main/CHANGELOG.md)
+- 尺寸、主题、隐藏样式、自定义 CSS 等修改后立即重算。
+- 面板标注「修改后刷新页面生效」或菜单提示「更改后请重新刷新页面」的分组（显示修改、屏蔽内容、黑名单）需要刷新知乎页面。
+- 配置由 `localStorage` 与 `GM.setValue` 双写保存（`src/tools/storage.ts` 的 `myStorage.getConfig()` / `updateConfig()`，键名 `pfConfig`）；浏览记录保存在 `pfHistory`，「推荐列表缓存」与「浏览历史记录」各最多缓存 500 条。跨浏览器迁移请使用配置导出 / 导入。
+
+## 主要功能
 
-[Github](https://github.com/liuyubing233/zhihu-custom/tree/main) ｜ [GreasyFork](https://greasyfork.org/zh-CN/scripts/423404-%E7%9F%A5%E4%B9%8E%E6%A0%B7%E5%BC%8F%E4%BF%AE%E6%94%B9%E5%99%A8)
+**面板真实菜单结构**（`src/index.html:29` 的 `#CTZ_DIALOG_MENU` 下 11 个 `div[data-href]`，内容区为 `:51` 的 `#CTZ_DIALOG_MAIN`；仓库中没有 `ctz-menu` 类名）：
 
-### 脚本样式
+通用 / 高性能 / 悬浮模块 / 隐藏模块 / 屏蔽内容 / 黑名单 / 页面尺寸 / 颜色 / 推荐列表缓存 / 浏览历史记录 / 默认功能
 
-![脚本样式](https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/home.png)
+下表左列是按主题整理的**功能说明分类**，不是面板菜单名；右列才是对应的真实菜单，两者不要混为一谈：
+
+| 功能分组（说明用分类） | 对应面板菜单 | 可配置项概览 |
+| --- | --- | --- |
+| 通用设置 | 通用 | 标签标题与图标、接口拦截开关、快捷键开关、显示修改下拉与开关、自定义 CSS、配置操作按钮 |
+| 高性能模式 | 高性能 | 推荐列表 / 回答页高性能模式 |
+| 悬浮模块 | 悬浮模块 | 齿轮定位、收起按钮悬浮、菜单栏切换模块悬浮 |
+| 隐藏模块 | 隐藏模块 | 8 个分组、115 个隐藏项、7 条组合规则 |
+| 黑名单 | 黑名单 | 黑名单与标签、同步 / 清空、导入导出、9 项通用开关 |
+| 页面尺寸 | 页面尺寸 | 五类页面宽度、字体、图片 / 视频尺寸、运行自检 |
+| 主题颜色 | 颜色 | 主题与浅 / 深色配色、文字颜色、原创高亮 |
+| 配置操作 | 通用（页顶部按钮区） | 极简模式、恢复默认、配置导入导出 |
+| 屏蔽内容 | 屏蔽内容 | 通用 / 列表 / 回答三类屏蔽与阈值 |
+| 屏蔽词 | 屏蔽内容（页内小节） | 标题屏蔽词、内容屏蔽词 |
+| 默认功能 | 默认功能 | 随脚本附带、无需开启的功能 |
 
-## 功能简介
+### 通用设置（面板「通用」）
 
-### 通用设置
+- **基本设置**：知乎搜索输入框、返回知乎主页、去除浏览器标签上「XX 条私信 / 未读消息」提示、自定义网页标签名称与图标；`接口拦截` 开关（默认开启）、`使用快捷键打开修改器` 开关（默认开启）。
+- **显示修改（下拉）**：
 
-<!-- 修改网页标签 -->
+  | 设置 | 选项 |
+  | --- | --- |
+  | 购物链接显示方式 | 默认 / 仅文字 / 隐藏 |
+  | 替换「知乎直达 ✦」为搜索 | 不替换 / 去除知乎直达跳转 / 知乎 / 必应 / 百度 / 谷歌 |
+  | 回答和文章中的视频显示方式 | 默认 / 修改为链接 / 隐藏视频·过滤视频回答 |
+  | 问题页面 - 回答收起/展开状态 | 默认 / 收起长回答 / 自动展开所有回答 |
+  | 用户主页 - 内容收起/展开状态 | 默认 / 自动展开内容 |
 
-<details>
+- **显示修改（开关）**：列表标题类别标签（问题 / 文章 / 视频 / 想法）、点击高亮边框、「···」按钮移到最右侧、显示「直达问题」按钮、操作栏仅显示数字和图标、回答顶部实时赞同数、一键获取回答链接、回答 / 文章顶部「导出当前内容/回答」按钮、列表 / 问题 / 回答 / 文章 / 用户主页的发布与修改时间、取消评论输入框自动聚焦、`Esc` 关闭评论弹窗、点击空白处关闭评论弹窗。
+- **自定义样式**：输入自定义 CSS 并保存为 `customizeCss`。
 
-<summary>修改网页标签</summary>
+### 高性能模式（面板「高性能」）
 
-> 菜单目录：通用 - 基本设置
+| 设置 | 行为 |
+| --- | --- |
+| 推荐列表高性能模式 | 推荐列表最多保留 50 条，超出则删除之前内容 |
+| 回答页高性能模式 | 回答列表最多保留 30 条，超出则删除之前回答 |
 
-<br>
+### 悬浮模块（面板「悬浮模块」）
 
-1. 去除浏览器标签上 `XX 条私信，XX条未读消息` 的提示<br>
-2. 修改浏览器标签名<br>
-3. 修改浏览器标签图片<br>
+- 修改器弹出图标 ⚙︎ 定位方式：左右 / 上下。
+- 回答内容「收起」按钮悬浮，可设置距右侧的位置。
+- 菜单栏切换模块悬浮，可分别显示「关注 / 推荐 / 热榜 / 专栏 / 圈子」入口。
 
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/change-web-title.png" alt="修改网页标签">
+### 隐藏模块（面板「隐藏模块」）
 
-</details>
+隐藏配置在 5.25 拆分为 `src/components/hidden/configs/` 下按分组的数据文件，共 **8 个分组、115 个隐藏项、7 条组合规则**，与拆分前逐项等价：
 
-<!-- 购物链接显示 -->
+| 分组 | 项数 | 覆盖范围（节选） |
+| --- | --- | --- |
+| 通用 | 14 | 广告、LOGO、顶部悬浮模块、顶部菜单栏各项、选中文字弹窗、知学堂推广商品模块 |
+| 操作栏 | 15 | 推荐 / 关注、搜索页、问题页、文章、收藏夹、用户主页的操作栏及底部悬浮条，评论回复 / 点赞 / 底部信息 |
+| 列表页面 | 28 | 创作中心、圈子、盐选作者平台、推荐关注、分类圆桌、更多分类、知乎指南、大家都在搜、付费咨询；列表切换、列表内容 / 视频 / 图片、热榜元素、搜索页模块 |
+| 问答页面 | 33 | 问题页标题与按钮、回答人信息、回答底部时间与标签、右侧信息栏各卡片 |
+| 文章专栏 | 10 | 关联话题、标题图片、所属专栏、推荐阅读、作者信息、关于作者、大家都在搜 |
+| 用户主页 | 7 | 付费咨询 / 认证成就、出版作品、创作中心、关注卡片、关注内容与赞助、右侧操作、知乎指南 |
+| 收藏夹 | 5 | 创作中心、推荐关注、圆桌入口、更多分类、知乎指南 |
+| 话题 | 3 | 浏览 / 讨论量、父子话题、知乎指南 |
+
+- 「盐选作者平台」一项自 5.24 起同时按卡片标题兼容「盐言作者平台」（`src/components/hidden/append-style.ts`）。隐藏判定按配置值拼接 CSS，不读取 DOM 实际可见性。
+- 7 条组合规则在一组开关全部勾选时追加整块样式（用户主页右列、搜索页侧栏、主页列表切换栏、话题右栏、回答页右栏等）。
+- 主页右栏九项（创作中心、圈子、盐选作者平台、推荐关注、分类圆桌、更多分类、知乎指南、大家都在搜、付费咨询）全部隐藏时，折叠右栏空白列并让主列居中铺满；任一项恢复立即还原两列布局。
 
-<details>
+### 黑名单（面板「黑名单」，需开启接口拦截，更改后刷新）
 
-<summary>购物链接显示修改</summary>
+- 通用设置 9 项：列表和回答 / 用户主页置顶 / 评论区「屏蔽用户」按钮；屏蔽黑名单用户发布的内容（问题、回答、文章）与评论；用 `*` 替换其内容；列表回答 / 评论区的黑名单标识；标识显示标签分类。
+- 黑名单标签：屏蔽用户后弹出标签选择、添加自定义标签。
+- 知乎黑名单与本地黑名单列表；`同步知乎黑名单`、`清空知乎黑名单`；黑名单部分配置的导出与「导入并合并」（`.txt`）。
+
+### 页面尺寸（面板「页面尺寸」）
 
-> 菜单目录：通用 - 显示修改
+- **页面内容宽度**：列表 / 回答 / 文章 / 用户主页 / 收藏夹，固定 600–1500 px 或按浏览器宽度 20–100% 百分比设置（最小显示宽度 600 px）；`评论弹窗匹配页面宽度`。
+- **运行自检**：入口为「页面尺寸 → 布局与隐藏自检 → 运行自检」，结果输出到浏览器 Console（F12），不是页面弹窗；详见「使用步骤」。
+- **字体大小**：列表 / 回答 / 文章各自的标题与内容共 6 项，以及内容行高。
+- **图片尺寸**：回答和文章图片尺寸（默认 / 自定义 / 原图，宽度 0–1000）；图片最大高度限制（0–1000，开启后宽度限制失效）；`弹窗打开动图`。
+- **视频尺寸**：列表视频回答尺寸（默认 / 自定义，宽度 0–1000）。
+
+### 主题颜色（面板「颜色」）
+
+- 主题：浅色 / 深色 / 自动（自动跟随系统 `prefers-color-scheme`）。
+- 浅色主题 8 色：默认、黄、绿、灰、紫、橙、浅橙、红；深色主题 8 色：默认、深色一 / 二 / 三、高对比度蓝 / 红 / 绿、纯黑。
+- 修改文字颜色；关注列表高亮原创内容及其背景色。
+- 5.25 起在 `:root` 上写入 `color-scheme` 跟随主题，并监听 `prefers-color-scheme` 的 `change`（`addEventListener`，不支持时降级 `addListener`）；系统主题变化后重算背景、尺寸与深色样式。
 
-<br>
+### 配置操作（位于「通用」页）
 
-- 默认：不修改<br>
-- 近文字：购物链接显示为 `购物链接：XXX` 的超链接<br>
-- 隐藏：隐藏购物链接显示<br>
+| 按钮 | 行为 |
+| --- | --- |
+| 启用极简模式 | 以 `CONFIG_SIMPLE` 覆盖当前配置，隐藏大部分模块，仅保留列表 / 回答 / 文章主体；会覆盖现有配置 |
+| 恢复默认配置 | 以 `CONFIG_DEFAULT` 覆盖当前配置；会覆盖现有配置 |
+| 配置导出 | 把当前 `pfConfig` 导出为 `.txt` 文件 |
+| 配置导入 | 选择 `.txt` 文件导入，写入后自动刷新页面 |
+| 自定义样式 | 保存自定义 CSS |
 
-</details>
+### 屏蔽内容（面板「屏蔽内容」，更改后刷新）
 
-<!-- 回答内容展开/收起状态 -->
-
-<details>
-
-<summary>回答内容展开/收起状态修改</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-- 默认：不修改<br>
-- 自动展开所有回答：通过推荐页进入问答详情时原本为收起长回答，选择此项后进入页面会自动展开所有收起的回答<br>
-- 默认收起长回答：选择此项后问答页面所有可收起的长回答默认都是收起状态，方便浏览<br>
-
-</details>
-
-<!-- 替换知乎直达✦为搜索 -->
-
-<details>
-
-<summary>替换知乎直达✦为搜索</summary>
-
-> 菜单目录：通用 - 显示修改 - 替换知乎直达 ✦ 为搜索
-
-<br>
-
-1. 设置知乎直达去除直达链接跳转，可以将知乎直达修改为普通文字内容<br>
-2. 设置为知乎、百度、必应、谷歌搜索，可以将知乎直达修改为对应的搜索链接，点击可跳转自动搜索<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/setting-replace-zhida.png" alt="直达设置">
-
-<br>
-
----
-
-<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/replace-zhida.png" alt="直达">
-
-</details>
-
-<!-- 回答和文章中的视频显示方式 -->
-
-<details>
-
-<summary>回答和文章中的视频显示方式</summary>
-
-> 菜单目录：通用 - 显示修改 - 回答和文章中的视频显示方式
-
-<br>
-
-- 默认<br>
-- 修改为链接<br>
-- 隐藏视频/过滤视频回答<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/video-link.png" alt="视频修改为链接">
-
-<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/video-hidden.png" alt="隐藏视频">
-
-<br>
-
----
-
-<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/replace-zhida.png" alt="直达">
-
-</details>
-
-<!-- 列表标题类别显示 -->
-
-<details>
-
-<summary>列表标题类别显示</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-开启后将在列表中显示类别<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/item-type.png" alt="列表标题类别显示">
-
-</details>
-
-<!-- 列表点击高亮边框 -->
-
-<details>
-
-<summary>列表点击高亮边框</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-勾选后后首页和回答详情列表在点击时边框高亮，类似于知乎原生快捷键 S 键
-
-</details>
-
-<!-- 列表更多「···」按钮移动到最右侧 -->
-
-<details>
-
-<summary>列表更多「···」按钮移动到最右侧</summary>
-
-> 菜单目录：通用 - 显示修改
-
-</details>
-
-<!-- 推荐列表按钮 -->
-
-<details>
-
-<summary>推荐列表「不感兴趣」、「直达问题」按钮</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-1. 开启 `推荐列表「不感兴趣」按钮` 后在推荐列表标题显示 `不感兴趣` 按钮<br>
-   - 点击`不感兴趣`隐藏当前问题并自动调用知乎本身 `不感兴趣` 接口，防止出现重复推荐（知乎不感兴趣接口对内容推荐的时效性不强，若后续再次出现重复内容为知乎自身问题）<br>
-   - 该功能需开启接口拦截<br>
-2. 开启 `推荐列表「直达问题」按钮` 后在推荐列表标题显示 `直达问题` 按钮<br>
-   - 点击直接跳转到问题主页，而不是当前推荐回答页面<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/just-number.png" alt="仅数字">
-
-</details>
-
-<!-- 仅数字 -->
-
-<details>
-
-<summary>赞同按钮仅显示数字、评论按钮仅显示数字</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/just-number.png" alt="仅数字">
-
-</details>
-
-<!-- 回答内容顶部显示赞同人数 -->
-
-<details>
-
-<summary>回答内容顶部显示赞同人数</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-此功能是为了解决知乎更新后顶部赞同人数消失的问题。
-
-</details>
-
-<!-- 一键获取回答链接 -->
-
-<details>
-
-<summary>一键获取回答链接</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-点击后自动复制当前回答内容的链接到剪贴板<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/copy-link.png" alt="回答一键获取回答链接">
-
-</details>
-
-<!-- 发布时间 -->
-
-<details>
-
-<summary>推荐、关注列表内容，问题详情，回答内容显示发布时间和最后修改时间，文章发布时间置顶</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-分别勾选后将在对应的内容顶部显示发布和修改时间<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/item-date.png" alt="时间">
-
-</details>
-
-<!-- 取消评论输入框自动聚焦 -->
-
-<details>
-
-<summary>取消评论输入框自动聚焦</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-开启后打开评论区不再自动聚焦到输入框，方便使用快捷键操作页面<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/cancel-comment-auto-focus.png" alt="取消聚焦"><br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/cancel-comment-auto-focus-after.png" alt="取消聚焦对比">
-
-</details>
-
-### 高性能模式
-
-<details>
-
-<summary>高性能模式</summary>
-
-> 菜单目录：高性能模式
-
-<br>
-
-推荐列表高性能模式开启后推荐列表内容最多保留 50 条，超出则删除之前内容<br>
-
-回答页高性能模式开启后，最多保留 30 条回答，超出则删除之前回答<br>
-
-</details>
-
-### 悬浮模块
-
-<!-- 回答内容「收起」按钮悬浮 -->
-
-<details>
-
-<summary>回答内容「收起」按钮悬浮</summary>
-
-> 菜单目录：悬浮模块
-
-<br>
-
-将展开长回答中的收起按钮悬浮显示，建议在隐藏问题详情操作栏的时候选择此项。<br>
-
-悬浮收起按钮距离右侧位置可自行设置。<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/suspension-pickup.png" alt="收起悬浮">
-
-</details>
-
-<!-- 信息模块悬浮 -->
-
-<details>
-
-<summary>信息模块悬浮</summary>
-
-> 菜单目录：悬浮模块 - 信息模块悬浮
-
-<br>
-
-悬浮对应模块，可以拖动自定义位置。<br>
-
-可设置模块：`首页列表切换`、`顶部发现模块`、`个人重心模块`、`搜索栏模块`<br>
-
-</details>
-
-### 隐藏模块
-
-<details>
-
-<summary>设置隐藏模块</summary>
-
-> 菜单目录：隐藏模块
-
-<br>
-
-勾选即可隐藏相应模块，隐藏模块大概设置内容：<br>
-
-- 通用隐藏<br>
-  - `隐藏修改器弹出图标 ⚙︎`, `广告`, `logo`, `顶部悬浮模块`, `滚动顶部悬浮模块/问题名称`, `发现模块-首页`, `发现模块-知学堂`, `发现模块-等你来答`, `发现模块-知乎直达`, `回答隐藏用户信息下的附加信息，比如：你赞同过、XXX 赞同了等...`, `评论「回复」按钮`, `评论「点赞」按钮`, `评论底部信息`, `知乎知学堂教育推广商品模块`<br>
-- 操作栏<br>
-  - `推荐、关注列表操作栏`, `推荐、关注列表操作栏 - 底部悬浮`, `搜索页列表操作栏`, `搜索页列表操作栏 - 底部悬浮`, `回答页问题操作栏`, `回答页回答内容操作栏`, `回答页回答内容操作栏 - 底部悬浮`, `文章底部悬浮操作栏`, `收藏夹列表操作栏`, `收藏夹列表操作栏 - 底部悬浮`, `个人主页动态、回答、文章等操作栏`, `个人主页动态、回答、文章等操作栏 - 底部悬浮`<br>
-- 列表页面<br>
-  - `创作中心`, `推荐关注`, `分类圆桌`, `更多分类`, `知乎指南`, `盐选作者平台`, `首页列表切换模块`, `首页列表切换 - 关注`, `首页列表切换 - 推荐`, `首页列表切换 - 热榜`, `首页列表切换 - 视频`, `列表内容`, `推荐、关注列表的视频`, `列表图片`, `问题列表阅读全文文字`, `列表「亲自答」标签`, `关注列表关注人操作`, `关注列表用户信息`, `热门排序编号`, `热门"新"元素`, `热门热度值`, `搜索栏知乎热搜`, `搜索页知乎热搜`, `搜索页知乎指南`<br>
-- 回答页面<br>
-  - `问题话题`, `问题分享`, `「好问题」按钮`, `添加评论`, `问题更多「...」按钮`, `问题专题收录标签`, `问题关注按钮`, `问题写回答按钮`, `问题邀请回答按钮`, `问题标题卡片广告和榜单`, `查看全部回答按钮`, `回答人头像`, `回答人姓名`, `回答人简介`, `回答人关注按钮`, `回答人下赞同数`, `问题关注和被浏览数`, `赞赏按钮`, `618 红包链接`, `回答底部发布编辑时间和 IP`, `回答底部发布编辑时间（保留 IP）`, `回答底部「继续追问」模块`, `详情右侧信息栏`, `信息栏关于作者`, `信息栏被收藏次数`, `信息栏相关问题`, `信息栏相关推荐`, `信息栏知乎指南`<br>
-- 文章专栏<br>
-  - `文章关联话题`, `文章标题图片`, `文章悬浮分享按钮`, `文章悬浮赞同按钮`, `文章作者头像`, `文章作者姓名`, `文章作者简介`, `文章作者关注按钮`, `文章底部知乎热榜`, `内容所属专栏`<br>
-- 用户主页<br>
-  - `用户主页付费咨询、认证和成就`, `用户主页出版作品`, `用户主页创作中心`, `用户主页关注和关注者卡片`, `用户主页关注的内容和赞助`, `用户主页右侧屏蔽·举报用户、个人主页被浏览次数`, `用户主页知乎指南`<br>
-- 收藏夹<br>
-  - `收藏夹创作中心`, `收藏夹推荐关注`, `收藏夹圆桌入口`, `收藏夹更多分类`, `收藏夹知乎指南`<br>
-- 话题<br>
-  - `话题主页右侧浏览/讨论量模块`, `话题主页右侧父子话题模块`, `话题主页右侧知乎指南`<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/hidden.png" alt="设置隐藏模块">
-
-</details>
-
-### 黑名单
-
-<details>
-
-<summary>黑名单</summary>
-
-> 菜单目录：黑名单
-
-<br>
-
-_注：需要开启接口拦截_<br>
-
-在使用该功能前，请先点击 `同步黑名单` 按钮同步黑名单内容。<br>
-
-1. 回答列表用户名后显示「屏蔽用户」按钮<br>
-   - 勾选后在回答内容中将添加 `屏蔽用户`、`屏蔽用户并隐藏该回答` 按钮，点击即可将对应用户拉入黑名单<br>
-2. 勾选 `屏蔽黑名单用户发布的内容` 后在回答详情中将会过滤黑名单用户的回答内容<br>
-3. 点击用户后的 x 即可将用户从黑名单移除<br>
-4. 黑名单功能在评论区同样适用
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/black.png" alt="黑名单">
-
-</details>
-
-<details>
-
-<summary>黑名单标签</summary>
-
-> 菜单目录：黑名单 - 黑名单标签
-
-<br>
-
-_注：需要开启接口拦截_<br>
-
-在使用该功能前，请先点击 `同步黑名单` 按钮同步黑名单内容。<br>
-
-给黑名单用户打标，以来表明是因为什么拉黑用户。<br>
-
-1. 在黑名单标签添加标签<br>
-2. 在黑名单用户名后的 ✎ 图标点击弹出选择标签弹窗进行添加删除<br>
-3. 设定了标签的黑名单用户在同步黑名单时标签仍然会存在<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/blocked-user-tag-input.png" alt="黑名单标签" />
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/blocked-user-tag-edit.png" alt="黑名单标签添加" />
-
-</details>
-
-### 页面尺寸
-
-<!-- 页面内容宽度 -->
-
-<details>
-
-<summary>页面内容宽度（列表、回答、文章、用户主页、收藏夹、评论弹窗）</summary>
-
-> 菜单目录：页面尺寸 - 页面内容宽度
-
-<br>
-
-1. 普通宽度设置，宽度为固定宽度，设置区间为 600 ～ 1500<br>
-2. 勾选百分比设置后，页面内容将根据浏览器宽度的比例进行设置，最小百分比为 20%<br>
-3. `评论弹窗匹配页面宽度` 勾选后，评论弹窗将跟页面内容宽度一致<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/setting-size.png" alt="页面尺寸">
-
-</details>
-
-<!-- 字体大小设置 -->
-
-<details>
-
-<summary>字体大小设置</summary>
-
-> 菜单目录：页面尺寸 - 字体大小
-
-<br>
-
-1. 列表标题文字大小、列表内容文字大小<br>
-2. 回答标题文字大小、回答内容文字大小<br>
-3. 文章标题文字大小、文章内容文字大小<br>
-4. 内容行高（在所有内容中生效）<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/font-size.png" alt="字体大小">
-
-</details>
-
-<!-- 图片尺寸 -->
-
-<details>
-
-<summary>回答和文章图片尺寸</summary>
-
-> 菜单目录：页面尺寸 - 回答和文章图片尺寸 ｜ 页面尺寸 - 图片最大高度限制
-
-<br>
-
-1. 回答和文章图片尺寸 - 为图片宽度设置<br>
-   - 默认：不修改<br>
-   - 原图：按照图片原图大小显示<br>
-   - 自定义：自定义图片宽度，设置区间为 0 ～ 1000<br>
-2. 图片最大高度显示<br>
-   - 开启限制后，图片宽度设置将会失效<br>
-   - 开启后，将按照设置的高度等比缩放图片<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/image-size.png" alt="图片尺寸">
-
-</details>
-
-<!-- 评论图片预览不超出页面 -->
-
-<details>
-
-<summary>评论图片预览不超出页面</summary>
-
-> 菜单目录：页面尺寸 - 图片尺寸 - 评论图片预览不超出页面
-
-<br>
-
-开启后评论区的弹窗图片预览将不超出页面最大尺寸<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/comment-image-preview.png" alt="图片尺寸">
-
-</details>
-
-<!-- 弹窗打开动图 -->
-
-<details>
-
-<summary>弹窗打开动图</summary>
-
-> 菜单目录：页面尺寸 - 图片最大高度限制
-
-<br>
-
-开启后，页面动图预览将以弹窗的形式查看，来替换直接在原位置查看的方式
-
-</details>
-
-<!-- 列表视频回答中的视频尺寸 -->
-
-<details>
-
-<summary>列表视频回答中的视频尺寸</summary>
-
-> 菜单目录：页面尺寸 - 列表视频回答中的视频尺寸
-
-<br>
-
-开启自定义后，将列表中的视频内容按照宽度进行缩放，设置区间为 0 ～ 1000
-
-</details>
-
-### 主题颜色
-
-<!-- 设置夜间模式 -->
-
-<details>
-
-<summary>主题颜色设置（是否开启夜间模式）</summary>
-
-> 菜单目录：主题颜色 - 主题颜色
-
-<br>
-
-1. 浅色：页面主题将根据浅色设置<br>
-2. 深色（夜间模式）：页面主题将根据深色设置<br>
-3. 自动：页面主题将根据浏览器是否开启夜间模式来设置，适用于自动开启夜间模式的电脑和浏览器<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/setting-background.png" alt="颜色设置">
-
-</details>
-
-<!-- 浅色颜色选择 -->
-
-<details>
-
-<summary>浅色颜色选择</summary>
-
-> 菜单目录：主题颜色 - 浅色颜色选择
-
-<br>
-
-浅色颜色主题预览（绿）：<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/background-light.png" alt="浅色颜色预览">
-
-</details>
-
-<!-- 深色颜色选择 -->
-
-<details>
-
-<summary>深色颜色选择（夜间模式颜色选择）</summary>
-
-> 菜单目录：主题颜色 - 深色颜色选择
-
-<br>
-
-_注：需开启深色模式，或在主题颜色自动时浏览器为深色模式_<br>
-
-_注 2: 深色蓝、深色红、深色绿为高对比度颜色_<br>
-
-深色颜色主题预览（深色护眼三）：<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/background-dark.png" alt="深色颜色预览">
-
-</details>
-
-<!-- 修改文字颜色 -->
-
-<details>
-
-<summary>修改文字颜色</summary>
-
-> 菜单目录：主题颜色 - 修改文字颜色
-
-<br>
-
-输入文字颜色后点击回车键或失去焦点生效，点击重置去除文字颜色设置<br>
-
-修改文字颜色预览：<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/font-color.png" alt="修改文字颜色">
-
-</details>
-
-<!-- 关注列表高亮原创内容 -->
-
-<details>
-
-<summary>关注列表高亮原创内容</summary>
-
-> 菜单目录：通用 - 显示修改
-
-<br>
-
-勾选后关注列表里原创内容 `发表回答`、`发表文章`、`提出问题` 后将高亮显示<br>
-
-可在 `关注列表高亮原创内容背景色` 自定义高亮背景色
-
-</details>
-
-### 配置操作
-
-<!-- 极简模式 -->
-
-<details>
-
-<summary>极简模式</summary>
-
-> 菜单目录：主题颜色 - 配置操作
-
-<br>
-
-点击即可启用极简模式，隐藏大部分的模块，仅保留列表主体、回答主体、文章主体，完全服务于阅读
-
-</details>
-
-<!-- 配置导入导出 -->
-
-<details>
-
-<summary>配置导入导出</summary>
-
-> 菜单目录：主题颜色 - 配置操作
-
-<br>
-
-1. 配置导出即可将当前设置导出为 txt 文件<br>
-2. 配置导入可将配置 txt 文件上传进行配置同步，一般用户跨浏览器使用<br>
-
-</details>
-
-<!-- 自定义样式 -->
-
-<details>
-
-<summary>自定义样式</summary>
-
-> 菜单目录：主题颜色 - 自定义样式
-
-<br>
-
-可自行输入 css 样式来进行定制化设置
-
-</details>
-
-### 屏蔽内容
-
-<details>
-
-<summary>屏蔽内容设置预览</summary>
-
-> 菜单目录：屏蔽内容
-
-<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/setting-filter.png" alt="屏蔽内容设置预览">
-
-</details>
-
-<!-- 屏蔽选自盐选专栏的内容 -->
-
-<details>
-
-<summary>屏蔽选自盐选专栏的内容</summary>
-
-> 菜单目录：屏蔽内容 - 通用内容屏蔽
-
-<br>
-
-开启后在推荐列表、回答内容中均会自动屏蔽来自盐选专栏的内容
-
-</details>
-
-<!-- 屏蔽顶部活动推广 -->
-
-<details>
-
-<summary>屏蔽顶部活动推广</summary>
-
-> 菜单目录：屏蔽内容 - 列表内容屏蔽
-
-<br>
-
-开启后将模拟点击方式关闭主页顶部活动推广，可解决物理隐藏下的颜色错误问题。
-
-</details>
-
-<!-- 屏蔽匿名用户提问 -->
-
-<details>
-
-<summary>屏蔽匿名用户提问</summary>
-
-> 菜单目录：屏蔽内容 - 列表内容屏蔽
-
-<br>
-
-开启后推荐列表将屏蔽屏蔽匿名用户的提问内容
-
-</details>
-
-<!-- 关注列表屏蔽自己的操作 -->
-
-<details>
-
-<summary>关注列表屏蔽自己的操作</summary>
-
-> 菜单目录：屏蔽内容 - 列表内容屏蔽
-
-<br>
-
-开启后在关注列表将不再出现自己的操作内容
-
-</details>
-
-<!-- 关注列表过滤关注人操作 -->
-
-<details>
-
-<summary>关注列表过滤关注人操作</summary>
-
-> 菜单目录：屏蔽内容 - 列表内容屏蔽
-
-<br>
-
-可设置过滤关注列表关注人的`赞同回答`、`赞同文章`、`关注话题`的操作
-
-</details>
-
-<!-- 列表低赞内容屏蔽 -->
-
-<details>
-
-<summary>列表低赞内容屏蔽</summary>
-
-> 菜单目录：屏蔽内容 - 列表内容屏蔽
-
-</details>
-
-<!-- 列表类别过滤 -->
-
-<details>
-
-<summary>列表类别过滤</summary>
-
-> 菜单目录：屏蔽内容 - 列表内容屏蔽
-
-<br>
-
-- 勾选 `邀请回答` 后推荐列表将不会显示邀请回答内容<br>
-- 勾选 `商业推广` 后搜索列表将不会显示商业推广内容<br>
-- 勾选 `文章` 后推荐列表将不会再出现专栏文章<br>
-- 勾选 `视频` 后推荐列表中将不会再出现视频内容<br>
-- 勾选 `想法` 后推荐列表中将不会再出现想法内容<br>
-
-</details>
-
-<!-- 屏蔽「匿名用户」回答 -->
-
-<details>
-
-<summary>屏蔽「匿名用户」回答</summary>
-
-> 菜单目录：屏蔽内容 - 回答内容屏蔽
-
-<br>
-
-开启后在回答页面，将不会再推荐匿名用户的回答<br>
-
-_注：仅在回答页面生效_<br>
-
-</details>
-
-<!-- 回答页面低赞回答屏蔽 -->
-
-<details>
-
-<summary>回答页面低赞回答屏蔽</summary>
-
-> 菜单目录：屏蔽内容 - 回答内容屏蔽
-
-<br>
-
-勾选后问题详情页将屏蔽点赞量少于设置大小的回答
-
-</details>
-
-<!-- 屏蔽带有虚构创作、选自电子书的回答 -->
-
-<details>
-
-<summary>屏蔽带有虚构创作、选自电子书的回答</summary>
-
-> 菜单目录：屏蔽内容 - 回答内容屏蔽
-
-<br>
-
-勾选后在回答内容中将屏蔽带有对应标签的回答
-
-</details>
-
-### 屏蔽词
-
-<!-- 标题屏蔽词 -->
-
-<details>
-
-<summary>标题屏蔽词</summary>
-
-> 菜单目录：屏蔽词 - 标题屏蔽词
-
-<br>
-
-输入框输入后点击回车键可添加屏蔽词，点击屏蔽词即可删除<br>
-
-推荐列表的标题将会针对屏蔽词过滤。可过滤多项，无上限。并在过滤后自动调用 `不感兴趣` 的接口，防止在其他设备上出现重复内容<br>
-
-_注：标题屏蔽词仅匹配标题内容_<br>
-
-**(图片内容仅为示例，无个人主观情感)**<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/filter-title-word.png" alt="标题屏蔽词">
-
-</details>
-
-<!-- 内容屏蔽词 -->
-
-<details>
-
-<summary>内容屏蔽词</summary>
-
-> 菜单目录：屏蔽词 - 内容屏蔽词
-
-<br>
-
-输入框输入后点击回车键可添加屏蔽词，点击屏蔽词即可删除<br>
-
-推荐列表内容、回答列表的内容将会针对屏蔽词过滤。可过滤多项，无上限。<br>
-
-_注：内容屏蔽词仅匹配列表或回答内容_<br>
-
-</details>
-
-### 默认功能
-
-<!-- 推荐列表缓存 & 浏览历史记录 -->
-
-<details>
-
-<summary>推荐列表缓存 & 浏览历史记录</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-默认缓存 500 条，点击标题可跳转。<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/history-recommend.png" alt="推荐列表缓存">
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/history-view.png" alt="浏览历史记录">
-
-</details>
-
-<!-- 外部链接直接跳转 -->
-
-<details>
-
-<summary>外部链接直接跳转</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-知乎里所有外部链接的重定向页面去除，点击将直接跳转到外部链接，不再打开知乎外部链接提示页面
-
-</details>
-
-<!-- 视频下载 -->
-
-<details>
-
-<summary>视频下载</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-可下载视频内容左上角将会生成一个下载按钮，点击即可下载视频<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/download-video.png" alt="视频下载">
-
-</details>
-
-<!-- 移除登录提示弹窗 -->
-
-<details>
-
-<summary>移除登录提示弹窗</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-未登录状态下自动移除登录弹窗<br>
-
-由于知乎接口的修改，未登录状态下无法查看全部回答、无法查看完整回答，以上问题只能通过登录解决<br>
-
-</details>
-
-<!-- 移除登录提示弹窗 -->
-
-<details>
-
-<summary>收藏夹、用户主页内容、文章和回答导出</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-导出步骤：<br>
-
-1. 点击导出内容按钮<br>
-2. 等待资源加载完成<br>
-3. 生成为 PDF 预览，点击保存即可保存至本地<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/export-to-pdf.png" alt="内容导出步骤">
-
-<br>
-
-用户主页回答、文章导出按钮：<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/export-home.png" alt="用户主页内容导出">
-
-<br>
-
-如需显示文章和回答导出按钮，需勾选 `通用 - 显示修改 - 文档或回答顶部显示导出当前内容/回答按钮`<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/export-content.png" alt="导出当前内容">
-
-</details>
-
-<!-- 一键邀请 -->
-
-<details>
-
-<summary>一键邀请</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-问题邀请用户添加一键邀请按钮，点击可邀请所有推荐用户<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/invite.png" alt="一键邀请">
-
-</details>
-
-<!-- 个人主页关注订阅快捷取消关注 -->
-
-<details>
-
-<summary>个人主页关注订阅快捷取消关注</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-_注：由于知乎接口的限制，关注及移除只能在对应页面中进行操作，所以点击 `移除关注` 按钮将打开到对应页面，取消或关注后此页面自动关闭，脚本未加载请刷新页面_<br>
-
-目前只支持 `关注的问题`、`关注的收藏`<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/remove-item.png" alt="一键移除">
-
-</details>
-
-<!-- 个人主页关注订阅快捷取消关注 -->
-
-<details>
-
-<summary>复制内容删除版权信息</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/remove-message.png" alt="移除版权信息">
-
-</details>
-
-<!-- 预览静态图片键盘快捷切换 -->
-
-<details>
-
-<summary>预览静态图片键盘快捷切换</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-静态图片点击查看大图时，如果当前回答或者文章中存在多个图片，可以使用键盘方向键左右切换图片显示
-
-</details>
-
-<!-- 一键移除所有屏蔽话题 -->
-
-<details>
-
-<summary>一键移除所有屏蔽话题</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-_注：由于知乎屏蔽话题每次只显示部分内容，建议解除屏蔽后刷新页面查看是否仍然存在新的屏蔽话题。_<br>
-
-<img src="https://raw.githubusercontent.com/liuyubing233/zhihu-custom/refs/heads/main/static/remove-filter-tag.png" alt="一键移除屏蔽话题">
-
-</details>
-
-<!-- 快捷键收起时修正定位 -->
-
-<details>
-
-<summary>快捷键收起时修正定位</summary>
-
-> 修改器默认功能，无需主动开启
-
-<br>
-
-推荐列表，快捷键收起时修正定位，解决部分情况下收起的内容在页面很上方的问题，方便阅读；
-
-</details>
-
-<span style="color: red">更多功能请在使用中查看</span>
+| 区域 | 可配置项 |
+| --- | --- |
+| 通用屏蔽 | 屏蔽选自盐选专栏的内容（需接口拦截）；显示「不感兴趣」按钮（需接口拦截），并把被屏蔽内容记入「不感兴趣的内容」列表 |
+| 列表内容屏蔽 | 顶部活动推广、匿名用户提问（需接口拦截）、屏蔽自己的操作、过滤关注人赞同回答 / 文章 / 关注问题、过滤邀请回答 / 商业推广 / 文章 / 视频 / 想法、低赞内容屏蔽与点赞阈值 |
+| 回答内容屏蔽 | 匿名用户回答、虚构创作标签回答、电子书标签回答、低赞回答与点赞阈值 |
+
+### 屏蔽词（位于「屏蔽内容」页）
+
+- 标题屏蔽词：匹配列表标题，输入后回车添加、点击屏蔽词删除，不区分大小写。
+- 内容屏蔽词：匹配列表与回答页内容，同样回车添加、点击删除。
+
+### 默认功能（面板「默认功能」，无需主动开启）
+
+外链直接跳转、移除登录提示弹窗、一键移除所有屏蔽话题、视频下载、收藏夹内容导出为 PDF（需接口拦截）、个人主页关注订阅快捷取消关注、预览静态图片方向键切换、用户主页回答 / 文章导出当前页内容（需接口拦截）、一键邀请、解除禁止转载限制（复制时忽略禁止转载提示）。
+
+面板另有「推荐列表缓存」「浏览历史记录」两页，各最多缓存 500 条（推荐列表缓存包含已过滤项），可分别一键清空。
+
+### 5.25 新增
+
+| 变更 | 说明 |
+| --- | --- |
+| `:has()` 类名回退 | 为不支持 `:has()` 的浏览器补齐 `@supports not selector(:has(*))` 降级块（`src/components/size/my-size.ts:267-278`）；`syncHasFallbackClasses()` 维护 `ctz-home-page`、`ctz-question-page`、`ctz-home-rail`、`ctz-question-shell`、`ctz-question-col` 共 5 个结构类（清单见 `my-size.ts:264-265`，常量与动态维护见 `src/tools/browser.ts:14-18, 42-43, 53, 63, 69`），用于保留宽度与主页布局补丁；旧版 Firefox 的解析行为未查证、需真机确认 |
+| `color-scheme` 跟随主题 | 见「主题颜色」；同时补上 `prefers-color-scheme` 的 `change` 监听 |
+| 隐藏配置拆分 | 单文件拆为按分组的数据文件，115 项 / 8 分组 / 7 组合规则，序列化结果与拆分前等价 |
+| 运行自检 | 唤起设置面板 → 左侧菜单「页面尺寸」（`#CTZ_VERSION`）→ 分组「布局与隐藏自检」→ 按钮「运行自检」（`src/index.html:471-480`，按钮在 `:479`）；结果输出到浏览器 Console（F12）分组，不是页面弹窗 |
+| 主页右栏折叠 | 九项全部隐藏时收掉右栏空白列、主列居中铺满；任一项恢复立即还原 |
+
+## 使用步骤
+
+1. **首次安装**：按「快速开始」安装并启用 `index.js` → 刷新知乎 → 用齿轮或 `Shift + .` 打开面板 → 面板右上显示 `version: 5.25` 即表示脚本已加载。
+2. **日常调整**：在左侧菜单选择分组 → 勾选开关或填写数值 / 文本 → 开关类设置即时写入配置；遇到面板红字「修改后刷新页面生效」或菜单提示「更改后请重新刷新页面」时刷新知乎页面。
+3. **配置导入导出**：在「通用」页点「配置导出」得到 `.txt` 备份；换浏览器或换设备时点「配置导入」选择该文件，导入后页面自动刷新。启用极简模式或恢复默认配置会覆盖当前配置，操作前建议先导出。
+4. **运行自检**：唤起设置面板 → 左侧菜单「页面尺寸」（`#CTZ_VERSION`）→ 分组「布局与隐藏自检」→ 点「运行自检」→ 按 F12 查看 Console 中名为「知乎修改器」自检报告的分组。**结果输出到 Console，不是页面弹窗**；页面另给出「N 项异常 / N 条提示」的提示条。自检报告包含：
+   - 时间、页面 URL、浏览器 UA、是否支持 `:has()`；
+   - 期望宽度（列表 / 回答）与 `.Topstory-container`、`.Topstory-mainColumn`、`.QuestionPage`、`.Question-mainColumn` 的实测宽度、左右边距与计算宽度；
+   - 3 张样式表 `CTZ_STYLE_VERSION` / `CTZ_STYLE_HIDDEN` / `CTZ_STYLE_BACKGROUND` 是否注入及其字符数；
+   - 九个右栏开关状态、「九项全隐藏」结论、右栏状态（容器 / 主列 / 右栏列是否识别、右栏类名、右栏与主列宽度、折叠是否生效）；
+   - 「九项 DOM 命中」：九个右栏模块锚点各自的 DOM 节点数；
+   - 「按标题隐藏标记数」；
+   - 「异常」与「提示」：例如自定义 CSS 含 `width + !important` 可能覆盖宽度、主页找不到 `.Topstory-mainColumn`、九项全隐藏但右栏未折叠、仍有模块可见却处于折叠状态、按标题兜底未命中等。
+
+   完整报告对象可在 Console 中右键复制，便于反馈问题。
+
+## 支持环境
+
+| 浏览器 | 原生支持 CSS `:has()` | 说明 |
+| --- | --- | --- |
+| Chrome / Edge（Chromium 系） | ≥ 105 | 使用原生 `:has()` 规则 |
+| Firefox | ≥ 121 | 使用原生 `:has()` 规则 |
+| Safari | ≥ 15.4 | 使用原生 `:has()` 规则 |
+| Firefox < 121 | 不支持 | 脚本内置两层回退：CSS 侧 `@supports not selector(:has(*))` 降级块（`src/components/size/my-size.ts:267-278`）与 JS 侧 `CSS.supports()` 检测后补结构类（`src/tools/browser.ts:36-77`、`syncHasFallbackClasses()`）。降级为等价近似，细节样式不保证逐像素一致；`selector()` 函数语法在旧 Firefox 上的解析行为未查证，是否完整生效需真机确认 |
+
+- **回退实现与边界**：CSS 侧 `@supports not selector(:has(*))` 降级块（`src/components/size/my-size.ts:267-278`）与 JS 侧 `CSS.supports()` 检测后添加 `ctz-*` 结构类（`src/tools/browser.ts:36-77`、`86-92`）共同用于保留宽度与主页布局补丁。但 `selector()` 函数语法在旧版 Firefox 中的起始支持版本、以及旧版 Firefox 解析该 at-rule 失败时降级块是否被整块忽略，**均未查证、需真机确认**，因此不把「补丁一定生效」写成确定结论；仓库 `build-config/public/CHANGELOG_LIST.md:7` 与 `my-size.ts:259-265` 注释里的「旧版 Firefox 下不再整体失效」是开发者意图声明，不是验证结果。
+- `:root{color-scheme}` 属性首次支持版本：Chrome / Edge ≥ 81、Firefox ≥ 96、Safari ≥ 13（MDN browser-compat-data `css/properties/color-scheme.json`，2026-11-13 核对）。部分指南写的 Chrome 98 是 `only` 关键字的首次支持版本或 Baseline「广泛可用」口径，不是本属性门槛；脚本 `src/components/background/background.ts:60` 只写 `light` / `dark`，不涉及 `only`。
+- 表中版本门槛是 `:has()` / `color-scheme` 的浏览器能力门槛，**低于门槛不代表脚本无法运行**：脚本不因 `:has()` 缺失而中止，只是原生规则失效并进入 v5.25 回退路径（回退在旧版 Firefox 上的解析行为未查证，见上）。
+- 上表的 `:has()` 与 `color-scheme` 版本门槛不是本脚本的已知限制：v5.25 已为不支持 `:has()` 的浏览器补齐回退，`color-scheme` 也已跟随主题并监听系统主题变化。
+- 脚本头的 8 组 `@compatible` 只写了浏览器与管理器名称、不带最低版本，是声明性标记而非逐项真机验证的能力保证；实际可用版本口径见上表，兼容性请以本节与「已知限制」的条件描述为准。
+- `@match` 为 `*://*.zhihu.com/*`，但主要初始化只在 `www.zhihu.com` 与 `zhuanlan.zhihu.com` 两个主机名下进行（`src/misc/index.ts` 的 `HTML_HOOTS`）；在 iframe 内不初始化面板与主功能（`src/index.ts:55` 判断 `window.frameElement`）。
+- 需要脚本管理器提供 `GM_*` / `GM.*` API 与 `@run-at document-start` 支持。
+- 移动版是上游的另一个独立项目，不是本仓库的产物；本仓库只构建桌面版 `index.js`。
+
+## 注意事项
+
+1. **接口拦截默认开启**（`src/config/index.ts:182` 的 `fetchInterceptStatus: true`）。若启用后出现「知乎页面无法显示数据」，先到「通用」页关闭接口拦截（沿用 `Q&A.md` 第 5 条）；关闭后依赖拦截的功能（黑名单、盐选专栏屏蔽、「不感兴趣」按钮、匿名用户提问屏蔽、导出 PDF 等）将不可用：面板会禁用标注了接口拦截依赖的开关，导出类按钮也不再出现。
+
+   ![接口拦截开关](static/not-fetch.png)
+
+2. **「弹窗打开动图」与修改图片的脚本 / 插件冲突**：若同时使用修改图片的脚本，不要开启此项（`Q&A.md` 第 7 条）。
+3. **Firefox 注入上下文**：在 Firefox 上，若用户脚本管理器因页面 CSP 把脚本注入到内容脚本上下文（Violentmonkey content / Tampermonkey `USERSCRIPT_WORLD`），脚本对 `unsafeWindow.fetch` 的替换可能不生效，接口拦截相关功能可能失效。可先用「运行自检」确认样式表与配置已正常加载（自检不检测注入模式），再检查管理器的注入世界设置。
+4. **快捷键不区分 Ctrl / ⌘**：主 `keydown` 只比较 `event.key`，不判断修饰键、不调用 `preventDefault`；Mac 用户无需额外设置。仓库中唯一的修饰键判断位于「替换知乎直达为搜索」的链接点击处理（`src/components/zhida-to-search.ts:39`），`event.metaKey || event.ctrlKey || event.shiftKey` 三者并列。
+5. **Safari 的历史注意事项尚未查证**：旧 `Q&A.md` 第 8 条记载「Safari 需手动删除脚本头的 `@grant unsafeWindow`」。当前代码在 `src/tools/browser.ts:2-11` 定义 `isSafari`、并在 `src/index.ts:98` 使用 `isSafari ? window : unsafeWindow` 分支，`index.js` 头部仍声明该 `@grant`；**原注意事项是否仍必要未做 Safari 真机验证，需真机确认**，不要据此断言已失效或仍必需，如仍无法运行请附上「运行自检」的 Console 报告反馈。此条只针对 Safari，**不要外推到 Firefox**：Firefox UA 下 `src/tools/browser.ts:2-11` 返回 `isSafari=false`，`src/index.ts:98` 取 `unsafeWindow`，删除该 `@grant` 后其是否仍可用未查证。
+6. **配置会覆盖**：极简模式与恢复默认配置直接覆盖 `pfConfig`；跨浏览器 / 跨设备同步请使用配置导出与导入。
+7. **生效时机**：面板中标注「修改后刷新页面生效」的项需要刷新知乎页面；部分设置在 SPA 换页时不会立即重算，见「已知限制」。
+
+## 已知限制
+
+1. **SPA 换页时部分设置不立即重算（全平台）**：`src/index.ts:267-268` 监听了 `popstate` 与 `pushState`，但全仓库没有对应的 `pushState` 事件派发（仅派发 `resize` 与鼠标事件），因此知乎通过 `history.pushState` 换页时不会触发 `changeHistory` 重算；刷新页面可恢复。
+2. **设置面板的滚动条与滑块在部分浏览器 / 系统下使用系统默认外观**：脚本只提供 `dialog.less:58-73` 的 `::-webkit-scrollbar*` 与 `common.less:234`、`range.less:34-38` 的 `::-webkit-slider-thumb`，全 `src/styles/` 没有 `scrollbar-width` / `scrollbar-color`。Firefox 不支持 `::-webkit-scrollbar`（MDN 兼容表已查证）；当计算后的 `scrollbar-width` 非 `auto` 时浏览器会忽略 `::-webkit-scrollbar*`，二者互斥、不能简单并列；滑块伪元素 `::-webkit-slider-thumb` 未单独查证。macOS overlay 滚动条下的表现只有二手资料，**待真机确认**，不写作已验证事实。
+3. **输入框内可能误触快捷键（全平台）**：`src/index.ts:308-338` 不检查 `activeElement` 是否为输入控件，也不阻止默认行为，在输入框里输入 `>` / `o` 或按左右方向键时可能触发设置抽屉、展开阅读全文或切图。
+4. **依赖知乎的类名与标题文本（全平台）**：部分隐藏与识别逻辑依赖知乎 CSS Modules 哈希类名（如 `css-19idom`、`CreateSaltCard`）以及卡片标题文本；知乎改版后可能临时失效。隐藏判定基于配置值而非 DOM 实际可见性（`src/components/hidden/append-style.ts` 按 `config[hiddenItem.value]` 拼接 CSS），这是 5.24 回归后的取舍。
+5. **右栏折叠按配置值判定**：`syncHomeSidebarCollapse()` 用 `HOME_SIDEBAR_KEYS.every(...)` 判断九个开关；若某项 CSS 隐藏已失效，右栏仍会被折叠。可用自检报告里的「九项 DOM 命中」与「右栏状态」定位。
+6. **局部功能未做 macOS Firefox 真机验证**：PDF 导出、视频下载、弹窗、外链 favicon 等未在 macOS Firefox 上验证。
+7. **验证方式**：本仓库的验证以静态检查、模拟 DOM 场景与构建复现为主，没有 macOS Firefox 真机证据；因此本文不给出「Firefox 完全可用 / 不可用」这类绝对结论。
+
+## 开发与构建
+
+技术栈：**TypeScript + esbuild + Less**；`tsconfig.json` 的 `target` 为 `es2017`，esbuild 以 `iife` 格式打包，`minify: false`、`charset: 'utf8'`。
+
+依赖（`package.json` 的 `devDependencies`）：`esbuild ^0.24.2`、`typescript ^5.2.2`、`less ^4.2.0`、`html-minifier ^4.0.0`、`shelljs ^0.8.5`、`@types/node ^20.5.9`；仓库带 `yarn.lock`。安装依赖后可直接用下列命令：
+
+| 命令 | 作用 |
+| --- | --- |
+| `npm run dev` | `APP_ENV=dev`，esbuild watch 并在 5555 端口提供本地静态服务 |
+| `npm run dev:win` | Windows 下的开发命令 |
+| `npm run build` | `APP_ENV=prod`，一次性构建（`node ./build-config/esbuild.build.js`） |
+| `npm run build:win` | Windows 下的构建命令（`set APP_ENV=prod&&node ...`） |
+
+**产物**：esbuild 输出到 `dist/index.js`（`dist/` 被 `.gitignore` 忽略）；`build-config/esbuild.plugins.js` 的 `envEnd` 插件去掉路径注释后写回仓库根目录的 `index.js`。根目录 `index.js` 已提交，用户可直接拿它安装；脚本头由 `build-config/esbuild.build.js` 读取 `package.json` 生成。
+
+| 路径 | 内容 |
+| --- | --- |
+| `src/index.ts` | 入口：`document-start` 初始化、fetch 拦截、主题监听、路由与键盘事件 |
+| `src/index.html` | 设置面板 HTML |
+| `src/styles/` | Less 样式 |
+| `src/config/` | 默认配置、极简模式配置与类型 |
+| `src/components/` | 功能模块（hidden、size、background、black-list、self-check 等） |
+| `src/components/hidden/configs/` | 隐藏项分组数据与组合规则 |
+| `src/init/` | 面板渲染与事件绑定 |
+| `src/tools/` | 存储、DOM、浏览器判定等工具 |
+| `build-config/` | esbuild 配置、插件与公共文案 |
+| `static/` | 仓库内图片资源 |
+| `index.js` | 已构建、可直接安装的用户脚本 |
+
+## 反馈与更新日志
+
+- [Q&A.md](Q&A.md) — 常见问题解答
+- [CHANGELOG.md](CHANGELOG.md) — 完整更新日志
+- [CHANGELOG_THIS.md](CHANGELOG_THIS.md) — 本分支本次改动
+- [build-config/public/CHANGELOG_LIST.md](build-config/public/CHANGELOG_LIST.md) — 面板内更新日志数据
+
+仓库：<https://github.com/NopantsNobra/zhihu-custom.git>
