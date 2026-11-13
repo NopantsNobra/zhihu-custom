@@ -4409,7 +4409,10 @@
       const cls = el.getAttribute("class") || "";
       if (!HIDDEN_CARD_CLASS_NAME_REG.test(cls)) return false;
       const rect = el.getBoundingClientRect();
-      return rect.width >= HIDDEN_CARD_MIN_WIDTH && rect.width <= HIDDEN_CARD_MAX_WIDTH && rect.height <= HIDDEN_CARD_MAX_HEIGHT;
+      if (rect.width < HIDDEN_CARD_MIN_WIDTH || rect.width > HIDDEN_CARD_MAX_WIDTH) return false;
+      if (rect.height < HIDDEN_CARD_MIN_HEIGHT) return false;
+      const parentRect = el.parentElement ? el.parentElement.getBoundingClientRect() : null;
+      return !parentRect || parentRect.width >= HIDDEN_CARD_MIN_WIDTH && parentRect.width <= HIDDEN_CARD_MAX_WIDTH;
     } catch {
       return false;
     }
@@ -4444,8 +4447,9 @@
       clearHiddenCardsByTitle();
       if (!needHide) return;
       const root = dom(HIDDEN_CARD_ROOT_SELECTOR) || dom(HIDDEN_CARD_ROOT_SELECTOR_FALLBACK);
+      const isHomePage = ["/", "/follow", "/hot", "/zvideo"].includes(location.pathname);
       if (!root) {
-        if (!loggedZeroHit) {
+        if (!loggedZeroHit && isHomePage) {
           loggedZeroHit = true;
           fnLog("按标题隐藏未命中：未找到主页容器 .Topstory-container / .Topstory，需要补充选择器");
         }

@@ -86,19 +86,21 @@ const clearHiddenCardsByTitle = () => {
  *
  * 这样能命中 `KfeCollection-CreateSaltCard`，但排除 `Card-header` / `Card-body` 这类子块；
  * 右栏容器类名形如 `SideColumn` / `New-RightCard`，前者不含 Card、后者被 `Right` 词元排除。
- * 几何安全网（宽度区间 + 高度上限）用于兜住任何「类名像卡片但体积是整列」的容器，
- * 与尺寸兜底判据共用同一组阈值，因此不会引入新的漏隐藏场景。
+ * 几何安全网（宽度区间 + 高度下限 + 父级宽度区间）用于兜住任何「类名像卡片但体积是整列」的容器，
+ * 宽度区间才是主安全网：主列与页面容器都会被挡掉；右栏由类名正则里的 Right 负向断言 + 父级宽度区间共同排除。
+ * 高度只设下限用于排除标题行——若再加上限，高卡片会让类名判据与尺寸兜底共用阈值而同时失效。
  */
 const isCardContainer = (el: HTMLElement): boolean => {
   try {
     const cls = el.getAttribute('class') || '';
     if (!HIDDEN_CARD_CLASS_NAME_REG.test(cls)) return false;
     const rect = el.getBoundingClientRect();
-    return (
-      rect.width >= HIDDEN_CARD_MIN_WIDTH &&
-      rect.width <= HIDDEN_CARD_MAX_WIDTH &&
-      rect.height <= HIDDEN_CARD_MAX_HEIGHT
-    );
+    if (rect.width < HIDDEN_CARD_MIN_WIDTH || rect.width > HIDDEN_CARD_MAX_WIDTH) return false;
+    if (rect.height < HIDDEN_CARD_MIN_HEIGHT) return false;
+    // 父级宽度也要落在卡片区间内：卡片挂在右栏（约 375）下可通过，
+    // 右栏自身挂在页面容器（1265）下会被排除，避免整列被吞掉。
+    const parentRect = el.parentElement ? el.parentElement.getBoundingClientRect() : null;
+    return !parentRect || (parentRect.width >= HIDDEN_CARD_MIN_WIDTH && parentRect.width <= HIDDEN_CARD_MAX_WIDTH);
   } catch {
     return false;
   }
@@ -108,7 +110,7 @@ const isCardContainer = (el: HTMLElement): boolean => {
  * 从命中的标题元素向上查找卡片容器。
  *
  * 类名判据优先（比尺寸可靠，且天然排除右栏）；类名失效时退回尺寸判据兜底：
- * 宽度区间过滤量级，高度 `>= 72` 排除标题行、`<= 520` 排除右栏容器。
+ * 宽度区间过滤量级，高度 `>= 72` 排除标题行、`<= 640` 排除右栏容器。
  * 两轮都找不到返回 null（宁可不隐藏，也不误伤右栏等大容器）。
  */
 const findHiddenCardContainer = (titleNode: HTMLElement): HTMLElement | null => {
@@ -172,8 +174,10 @@ export const syncHiddenCardsByTitle = async (forceResetLog = false): Promise<voi
 
     // 只认主页容器；降级名仅用于知乎改版改容器类名，不降级到 .App-main / body
     const root = dom(HIDDEN_CARD_ROOT_SELECTOR) || dom(HIDDEN_CARD_ROOT_SELECTOR_FALLBACK);
+    // 非主页本来就没有主页右栏，取不到容器是预期行为，不应提示（否则默认配置下每次打开问题页都会看到误导日志）
+    const isHomePage = ['/', '/follow', '/hot', '/zvideo'].includes(location.pathname);
     if (!root) {
-      if (!loggedZeroHit) {
+      if (!loggedZeroHit && isHomePage) {
         loggedZeroHit = true;
         fnLog('按标题隐藏未命中：未找到主页容器 .Topstory-container / .Topstory，需要补充选择器');
       }
