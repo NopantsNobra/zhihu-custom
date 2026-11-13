@@ -69,7 +69,7 @@ export const mySize = {
     const versionSizeCollection = formatVersionPercentSize('versionCollection');
 
     const NAME_HOME = '.Topstory-mainColumn,.SearchMain';
-    const NAME_ANSWER = '.QuestionPage,.QuestionHeader-footer-inner,.QuestionHeader .QuestionHeader-content,.QuestionPage>div';
+    const NAME_ANSWER = '.QuestionPage,.QuestionHeader-footer-inner,.QuestionHeader .QuestionHeader-content,.QuestionPage>div,.Question-mainColumn,.AnswersNavWrapper';
     const NAME_ARTICLE = '.Post-NormalSub>div,.zhuanlan .Post-Row-Content,.zhuanlan .css-pi1fiy';
     //.Post-NormalMain .Post-Header， ,.Post-NormalMain>div 旧的专栏 ,.zhuanlan .css-1xy3kyp ,.zhuanlan .css-1voxft1 ,.zhuanlan .css-9w3zhd,.zhuanlan .css-15k5nix,.zhuanlan .css-1byd3cx
     const NAME_USER_HOME = '#ProfileHeader,[itemprop="people"] .Profile-main';
@@ -80,7 +80,7 @@ export const mySize = {
       // 首页列表页面内容宽度
       `${NAME_HOME}{width: ${versionSizeHome}!important;}` +
       // 回答详情页面内容宽度
-      `${NAME_ANSWER}{width: ${versionSizeAnswer}!important;margin: 0 auto; padding: 0;}` +
+      `${NAME_ANSWER}{width: ${versionSizeAnswer}!important;margin: 0 auto!important; padding: 0;}` +
       // 文章页面内容宽度
       `${NAME_ARTICLE}{width: ${versionSizeArticle}!important;}` +
       `.zhuanlan .Post-SideActions{right: ${
@@ -238,6 +238,6 @@ export const mySize = {
       // 行高
       fnReturnStr(`p {line-height: ${contentLineHeight}px;}`, !!contentLineHeight);
 
-    return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth;
+    return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.QuestionPage) nav.css-7guej9{display:none!important}html:has(.QuestionPage) .QuestionPage,html:has(.QuestionPage) .Question-mainColumn,html:has(.QuestionPage) .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}` + `html:has(.QuestionPage) :has(.App-main),html:has(.QuestionPage) :has(>.QuestionPage){width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}html:has(.QuestionPage) .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}html:has(.QuestionPage) .QuestionPage>:has(.Question-mainColumn){width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}html:has(.QuestionPage) .QuestionPage :has(>.Question-mainColumn){width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}html:has(.QuestionPage) .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}`;
   },
 };
