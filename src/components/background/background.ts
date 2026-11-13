@@ -82,7 +82,7 @@ const NAME_BACKGROUND_1 =
 
 /** 使用背景色2的元素名称 */
 const NAME_BACKGROUND_2 =
-  `.${CLASS_MESSAGE}` +
+  `header,.${CLASS_MESSAGE}` +
   `,.zhuanlan .Post-Row-Content .Post-Row-Content-left,.zhuanlan .Post-content .ContentItem-actions,.zhuanlan .Column-EmptyCard` +
   `,.Card,.HotItem,.AppHeader,.Topstory-content>div,.PlaceHolder-inner,.PlaceHolder-bg,.ContentItem-actions,.QuestionHeader,.QuestionHeader-footer ` +
   `,.QZcfWkCJoarhIYxlM_sG,.Sticky,.SearchTabs,.Modal-inner,.Modal-content,.Modal-content div,.Modal-wrapper textarea` +
