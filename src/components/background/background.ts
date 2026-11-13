@@ -5,8 +5,44 @@ import { EThemeDark, EThemeLight, THEME_CONFIG_DARK, THEME_CONFIG_LIGHT } from '
 /** 匹配类名以i开始部分 */
 const appendClassStart = (str: string) => appendPrefix(str, (i) => `[class|="${i}"]`);
 
-/** 样式名逗号分隔批量添加前缀 */
-const appendPrefix = (str: string, mapCB: (i: string) => string) => str.split(',').map(mapCB).join(',');
+/**
+ * 为 CSS 规则批量添加前缀。
+ *
+ * 先按「规则块」切分，再只对选择器部分按逗号拆分，避免两个问题：
+ * 1. 把声明块内的逗号（rgba(0, 0, 0, .1)、font-family 的字体列表）误当作选择器分隔符；
+ * 2. 拼接的多条规则块只有第一条能拿到前缀（`}` 后紧跟下一个选择器、中间没有逗号）。
+ */
+const appendPrefix = (str: string, mapCB: (i: string) => string) => {
+  const blocks: string[] = [];
+  let depth = 0;
+  let buf = '';
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    buf += char;
+    if (char === '{') {
+      depth++;
+    } else if (char === '}') {
+      depth--;
+      if (depth === 0) {
+        blocks.push(buf);
+        buf = '';
+      }
+    }
+  }
+  if (buf.trim()) blocks.push(buf);
+
+  return blocks
+    .map((block) => {
+      const braceIndex = block.indexOf('{');
+      // 纯选择器列表（没有声明块），例如 appendClassStart 传入的类名列表
+      if (braceIndex === -1) return block.split(',').map((item) => mapCB(item.trim())).join(',');
+      const selector = block.slice(0, braceIndex);
+      const body = block.slice(braceIndex);
+      return selector.split(',').map((item) => mapCB(item.trim())).join(',') + body;
+    })
+    .join('');
+};
 
 /** 修改页面背景的 css */
 export const myBackground = {
@@ -17,19 +53,23 @@ export const myBackground = {
 
     const isRegular = !useDark && themeLight === EThemeLight.默认;
 
+    const domHTML = dom('html')!;
+    // 先落主题属性再注入样式：appendPrefix 修复后，深色规则统一带 html[data-theme=dark] 前缀，
+    // 若样式先于属性写入，首帧会短暂按浅色渲染（顶部白底 + 白字）。
+    if (useDark) {
+      domHTML.setAttribute('theme-dark', `${themeDark}`);
+      domHTML.setAttribute('data-theme', 'dark');
+      domHTML.removeAttribute('theme-light');
+    } else {
+      domHTML.setAttribute('theme-light', `${themeLight}`);
+      domHTML.setAttribute('data-theme', 'light');
+      domHTML.removeAttribute('theme-dark');
+    }
+
     fnAppendStyle(
       'CTZ_STYLE_BACKGROUND',
       isRegular ? '' : (useDark ? this.dark(themeDark) : this.light(themeLight)) + fnReturnStr(`.ContentItem-title, body{color: ${colorText1}!important;}`, !!colorText1),
     );
-
-    const domHTML = dom('html')!;
-    if (useDark) {
-      domHTML.setAttribute('theme-dark', `${themeDark}`);
-      domHTML.removeAttribute('theme-light');
-    } else {
-      domHTML.setAttribute('theme-light', `${themeLight}`);
-      domHTML.removeAttribute('theme-dark');
-    }
   },
   /** 浅色模式 */
   light: function (lightKey: EThemeLight) {
@@ -158,7 +198,7 @@ const DARK_NAME_COLOR_WHITE =
   )}`;
 
 /** 黑夜模式下的黑色字体元素名称 */
-const DARK_NAME_COLOR_BLACK = `css-1x3upj1,.PlaceHolder-inner,.PlaceHolder-mask path`;
+const DARK_NAME_COLOR_BLACK = `.css-1x3upj1,.PlaceHolder-inner,.PlaceHolder-mask path`;
 
 /** 黑夜模式下浅蓝色超链接字体 */
 const DARK_NAME_COLOR_LIGHT_LINK =

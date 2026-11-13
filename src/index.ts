@@ -35,7 +35,7 @@ import { doReadMore } from './init/init-top-event-listener';
 import { needRedirect } from './init/redirect';
 import { EXTRA_CLASS_HTML, HTML_HOOTS, ID_EXTRA_DIALOG } from './misc';
 import { store } from './store';
-import { dom, domById, domP, fnAppendStyle, fnLog, formatDataToHump, interceptionResponse, isSafari, mouseEventClick, myStorage, pathnameHasFn, throttle } from './tools';
+import { dom, domById, domP, fnAppendStyle, fnLog, formatDataToHump, interceptionResponse, isSafari, isSupportHasSelector, mouseEventClick, myStorage, pathnameHasFn, throttle } from './tools';
 import { IZhihuAnswerTarget } from './types/zhihu/zhihu-answer.type';
 import { INNER_CSS } from './web-resources';
 
@@ -204,6 +204,10 @@ import { INNER_CSS } from './web-resources';
         printArticle(nodeArticle);
         initVideoDownload(nodeArticle);
       }
+    }
+
+    if (!isSupportHasSelector()) {
+      fnLog('当前浏览器不支持 CSS :has()，页面尺寸与主页布局修复不会生效。请升级到 Chrome/Edge 105+、Firefox 121+ 或 Safari 15.4+');
     }
 
     fnLog(`加载完毕, 加载时长: ${Math.floor((performance.now() - T0) / 10) / 100}s, 可使用 shift + . 或点击左侧眼睛按钮唤起修改器弹窗`);

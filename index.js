@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         知乎修改器🤜持续更新🤛努力实现功能最全的知乎配置插件
 // @namespace    http://tampermonkey.net/
-// @version      5.22
+// @version      5.23
 // @description  知乎高性能模式，页面模块自定义隐藏，列表及回答内容过滤，保存浏览历史记录，推荐页内容缓存，一键邀请，复制代码块删除版权信息，列表种类和关键词强过滤并自动调用「不感兴趣」接口，屏蔽用户回答，视频下载，设置自动收起所有长回答或自动展开所有回答，移除登录提示弹窗，设置过滤故事档案局和盐选科普回答等知乎官方账号回答，手动调节文字大小，切换主题及深色模式调整，隐藏知乎热搜，列表添加标签种类，去除广告，设置购买链接显示方式，收藏夹内容、回答、文章导出为PDF，一键移除所有屏蔽选项，外链直接打开，键盘左右切换预览图片，快捷键收起时修正定位，更多功能请在插件里体验...
 // @compatible   edge Violentmonkey
 // @compatible   edge Tampermonkey
@@ -35,6 +35,13 @@
     return "Safari";
   };
   var isSafari = judgeBrowserType() === "Safari";
+  var isSupportHasSelector = () => {
+    try {
+      return typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("selector(:has(*))");
+    } catch {
+      return false;
+    }
+  };
   var windowResize = () => {
     window.dispatchEvent(new Event("resize"));
   };
@@ -782,7 +789,7 @@
         `.Topstory-body .RichContent-inner,.Topstory-body .ctz-list-item-time,.Topstory-body .CommentContent,.SearchResult-Card .RichContent-inner,.SearchResult-Card .CommentContent,.HotItem-excerpt--multiLine{font-size: ${fontSizeForList}px!important;}`,
         !!fontSizeForList
       ) + fnReturnStr(`.QuestionPage .RichContent-inner,.QuestionPage .ctz-list-item-time,.QuestionPage .CommentContent{font-size: ${fontSizeForAnswer}px}`, !!fontSizeForAnswer) + fnReturnStr(`.zhuanlan .Post-RichTextContainer,.zhuanlan .ctz-article-create-time,.zhuanlan .CommentContent{font-size: ${fontSizeForArticle}px}`, !!fontSizeForArticle) + fnReturnStr(`.zhuanlan .Post-Main .Post-Title{font-size: ${fontSizeForArticleTitle}px;}`, !!fontSizeForArticleTitle) + fnReturnStr(`.ContentItem-title,.HotItem-title{font-size: ${fontSizeForListTitle}px!important;}`, !!fontSizeForListTitle) + fnReturnStr(`.QuestionHeader-title{font-size: ${fontSizeForAnswerTitle}px!important;}`, !!fontSizeForAnswerTitle) + fnReturnStr(`p {line-height: ${contentLineHeight}px;}`, !!contentLineHeight);
-      return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.QuestionPage) nav.css-7guej9{display:none!important}html:has(.QuestionPage) .QuestionPage,html:has(.QuestionPage) .Question-mainColumn,html:has(.QuestionPage) .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}html:has(.QuestionPage) :has(.App-main),html:has(.QuestionPage) :has(>.QuestionPage){width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}html:has(.QuestionPage) .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}html:has(.QuestionPage) .QuestionPage>:has(.Question-mainColumn){width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}html:has(.QuestionPage) .QuestionPage :has(>.Question-mainColumn){width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}html:has(.QuestionPage) .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}`;
+      return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}html:has(.QuestionPage) nav.css-7guej9{display:none!important}html:has(.QuestionPage) .QuestionPage,html:has(.QuestionPage) .Question-mainColumn,html:has(.QuestionPage) .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}html:has(.QuestionPage) :has(.App-main),html:has(.QuestionPage) :has(>.QuestionPage){width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}html:has(.QuestionPage) .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}html:has(.QuestionPage) .QuestionPage>:has(.Question-mainColumn){width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}html:has(.QuestionPage) .QuestionPage :has(>.Question-mainColumn){width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}html:has(.QuestionPage) .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}`;
     }
   };
   var changeSizeBeforeResize = async () => {
@@ -3370,24 +3377,51 @@
     return +theme === 1 /* 深色 */;
   };
   var appendClassStart = (str) => appendPrefix(str, (i) => `[class|="${i}"]`);
-  var appendPrefix = (str, mapCB) => str.split(",").map(mapCB).join(",");
+  var appendPrefix = (str, mapCB) => {
+    const blocks = [];
+    let depth = 0;
+    let buf = "";
+    for (let i = 0; i < str.length; i++) {
+      const char = str[i];
+      buf += char;
+      if (char === "{") {
+        depth++;
+      } else if (char === "}") {
+        depth--;
+        if (depth === 0) {
+          blocks.push(buf);
+          buf = "";
+        }
+      }
+    }
+    if (buf.trim()) blocks.push(buf);
+    return blocks.map((block) => {
+      const braceIndex = block.indexOf("{");
+      if (braceIndex === -1) return block.split(",").map((item) => mapCB(item.trim())).join(",");
+      const selector = block.slice(0, braceIndex);
+      const body = block.slice(braceIndex);
+      return selector.split(",").map((item) => mapCB(item.trim())).join(",") + body;
+    }).join("");
+  };
   var myBackground = {
     init: async function() {
       const { themeDark = 1 /* 深色一 */, themeLight = 0 /* 默认 */, colorText1 } = await myStorage.getConfig();
       const useDark = await isDark();
       const isRegular = !useDark && themeLight === 0 /* 默认 */;
+      const domHTML = dom("html");
+      if (useDark) {
+        domHTML.setAttribute("theme-dark", `${themeDark}`);
+        domHTML.setAttribute("data-theme", "dark");
+        domHTML.removeAttribute("theme-light");
+      } else {
+        domHTML.setAttribute("theme-light", `${themeLight}`);
+        domHTML.setAttribute("data-theme", "light");
+        domHTML.removeAttribute("theme-dark");
+      }
       fnAppendStyle(
         "CTZ_STYLE_BACKGROUND",
         isRegular ? "" : (useDark ? this.dark(themeDark) : this.light(themeLight)) + fnReturnStr(`.ContentItem-title, body{color: ${colorText1}!important;}`, !!colorText1)
       );
-      const domHTML = dom("html");
-      if (useDark) {
-        domHTML.setAttribute("theme-dark", `${themeDark}`);
-        domHTML.removeAttribute("theme-light");
-      } else {
-        domHTML.setAttribute("theme-light", `${themeLight}`);
-        domHTML.removeAttribute("theme-dark");
-      }
     },
     light: function(lightKey) {
       if (+lightKey === +0 /* 默认 */) return "";
@@ -3411,7 +3445,7 @@
   var DARK_NAME_COLOR_WHITE = `.${CLASS_MESSAGE},.ctz-export-collection-box p,#CTZ_SUSPENSION_SWITCH>a,.Modal-content,.Modal-content div,.Menu-item.is-active,.Select-list button:active,.Select-list button:hover,.Popover-content button,.Modal-title,.zu-main div,.modal-dialog,.zh-profile-card div,.QuestionAnswers-answerAdd div,.QuestionAnswers-answerAdd label,.Tabs-link,.toolbar-section button,.Modal-modal-wf58 div,.Creator-mainColumn .Card div,.Comments-container div,.SettingsMain div,.KfeCollection-PayModal-modal div,.KfeCollection-CouponCard-selectLabel,.KfeCollection-CouponCard-optionItem-text,.KfeCollection-PayModal-modal-icon,.NavItemClassName,.LinkCard-title,.Creator div,.Creator span,.Modal-wrapper textarea,.EditorHelpDoc,.EditorHelpDoc div,.EditorHelpDoc h1,.FeedbackModal-title,.LiveDetailsPage-root-aLVPj div,.PostEditor-wrapper>div:last-of-type div,.PostEditor-wrapper>div:last-of-type label,.ToolsQuestion a,.ToolsQuestion font,.utils-frostedGlassEffect-2unM div,.utils-frostedGlassEffect-2unM span,.aria-primary-color-style.aria-secondary-background,.aria-primary-color-style.aria-secondary-background div,.aria-primary-color-style.aria-secondary-background h1,.aria-primary-color-style.aria-secondary-background a,.aria-primary-color-style.aria-secondary-background p,.aria-primary-color-style.aria-secondary-background h2,#feedLives div,#feedLives a,.Card-card-2K6v,.Card-card-2K6v div,.Card-card-2K6v h3,._Invite_container_30SP h2,._Invite_container_30SP h1,.ChatListGroup-SectionTitle .Zi,.Qrcode-container>div,.Qrcode-guide-message>div,.signQr-leftContainer button,.signQr-leftContainer a,.ExploreHomePage-square div,.ExploreHomePage-square a,.jsNavigable a,#TopstoryContent h2,[role="contentinfo"] div,.CreatorSalt-personalInfo-name,.ant-collapse>.ant-collapse-item>.ant-collapse-header,.ant-modal-content,.ant-modal-confirm-body .ant-modal-confirm-content,.Creator-salt-new-author-menu .Creator-salt-new-author-route .ant-menu-submenu-title:hover,.Creator-salt-author-welfare .Creator-salt-author-welfare-card h1,.CommentContent,.css-1j6g1cv > span, .css-1j6g1cv > div,blockquote,[class^="css-"],[class^="index-descInfo"],[class^="TopNavBar-tab-"] a,${appendClassStart(
     "index-title,CourseConsultation-tip,index-text,index-number,CourseDescription-playCount,LecturerList-title,LearningRouteCard-title,index-tabItemLabel,VideoCourseCard-module,TextTruncation-module"
   )}`;
-  var DARK_NAME_COLOR_BLACK = `css-1x3upj1,.PlaceHolder-inner,.PlaceHolder-mask path`;
+  var DARK_NAME_COLOR_BLACK = `.css-1x3upj1,.PlaceHolder-inner,.PlaceHolder-mask path`;
   var DARK_NAME_COLOR_LIGHT_LINK = `.ctz-zhida,.css-1esjagr,.css-ruirke,.css-117anjg a.UserLink-link,.RichContent--unescapable.is-collapsed .ContentItem-rightButton,.css-1qap1n7,.ContentItem-more,.ContentItem-title a:hover,.Profile-lightItem:hover,.Profile-lightItem:hover .Profile-lightItemValue,.css-p54aph:hover,.PushNotifications-item a:hover,.PushNotifications-item a,.NotificationList-Item-content .NotificationList-Item-link:hover,.SettingsQA a,a.QuestionMainAction:hover,.SimilarQuestions-item .Button,.CreatorSalt-IdentitySelect-Button,.signQr-leftContainer button:hover,.signQr-leftContainer a:hover,.Profile-sideColumnItemLink:hover,.FollowshipCard-link,.css-zzimsj:hover,.css-vphnkw,.css-1aqu4xd,.css-6m0nd1,.NumberBoard-item.Button:hover .NumberBoard-itemName, .NumberBoard-item.Button:hover .NumberBoard-itemValue, .NumberBoard-itema:hover .NumberBoard-itemName, .NumberBoard-itema:hover .NumberBoard-itemValue,a.external,.RichContent-EntityWord,.SideBarCollectionItem-title,.Tag-content,.LabelContainer div,.LabelContainer a,.KfeCollection-OrdinaryLabel-newStyle-mobile .KfeCollection-OrdinaryLabel-content,.KfeCollection-OrdinaryLabel-newStyle-pc .KfeCollection-OrdinaryLabel-content,.KfeCollection-CreateSaltCard-button,.KfeCollection-PcCollegeCard-searchMore,.css-15m2p8i > a:hover,#CTZ_SUSPENSION_SWITCH>a:hover`;
   var createHTMLBackgroundSetting = (domMain) => {
     const radioBackground = (name, value, background, color, label, primary) => `<label class="ctz-background-item">${`<input class="${CLASS_INPUT_CLICK}" name="${name}" type="radio" value="${value}"/><div class="ctz-background-item-div" style="background: ${primary || background};color: ${color}"></div><div class="ctz-background-item-border"></div><div class="ctz-background-item-name">${label}</div>`}</label>`;
@@ -5706,6 +5740,9 @@
           printArticle(nodeArticle);
           initVideoDownload(nodeArticle);
         }
+      }
+      if (!isSupportHasSelector()) {
+        fnLog("当前浏览器不支持 CSS :has()，页面尺寸与主页布局修复不会生效。请升级到 Chrome/Edge 105+、Firefox 121+ 或 Safari 15.4+");
       }
       fnLog(`加载完毕, 加载时长: ${Math.floor((performance.now() - T0) / 10) / 100}s, 可使用 shift + . 或点击左侧眼睛按钮唤起修改器弹窗`);
     };
