@@ -40,18 +40,12 @@ const HIDDEN_CARD_TITLE_MAP: Record<string, string[]> = {
 
 /** 标记「已按标题隐藏」的卡片，便于取消勾选后还原 */
 const HIDDEN_BY_TITLE_ATTR = 'data-ctz-hidden-by-title';
-/** 卡片容器宽度下界（右栏与卡片同宽约 375，需配合高度判定区分） */
-const HIDDEN_CARD_MIN_WIDTH = 240;
-/** 卡片容器宽度上界 */
-const HIDDEN_CARD_MAX_WIDTH = 420;
+/** 卡片容器宽度下界（低于此值视为布局未完成的小块） */
+const HIDDEN_CARD_MIN_WIDTH = 200;
 /** 卡片容器高度下界（排除标题行，实测标题行约 40） */
 const HIDDEN_CARD_MIN_HEIGHT = 72;
-/** 卡片容器高度上界（实测推荐关注最多 6 个用户约 520，此处留足余量；右栏容器常 > 700） */
-const HIDDEN_CARD_MAX_HEIGHT = 640;
 /** 类名判据的最大上溯层数（标题到卡片之间可能隔几层包装） */
 const HIDDEN_CARD_MAX_DEPTH_CLASS = 6;
-/** 尺寸兜底判据的最大上溯层数 */
-const HIDDEN_CARD_MAX_DEPTH = 4;
 /** 主页列表容器，查找范围只限定在其内部 */
 const HIDDEN_CARD_ROOT_SELECTOR = '.Topstory-container';
 /** 主页容器的降级名（仅用于知乎改版改容器类名，不用于跨页面） */
@@ -82,62 +76,54 @@ const clearHiddenCardsByTitle = () => {
 };
 
 /**
- * 卡片容器判定：类名以 Card 结尾且独立成词才认，并叠一层几何安全网。
+ * 卡片容器判定：只按类名判断，不叠加几何条件。
  *
- * 这样能命中 `KfeCollection-CreateSaltCard`，但排除 `Card-header` / `Card-body` 这类子块；
- * 右栏容器类名形如 `SideColumn` / `New-RightCard`，前者不含 Card、后者被 `Right` 词元排除。
- * 几何安全网（宽度区间 + 高度下限 + 父级宽度区间）用于兜住任何「类名像卡片但体积是整列」的容器，
- * 宽度区间才是主安全网：主列与页面容器都会被挡掉；右栏由类名正则里的 Right 负向断言 + 父级宽度区间共同排除。
- * 高度只设下限用于排除标题行——若再加上限，高卡片会让类名判据与尺寸兜底共用阈值而同时失效。
+ * 一旦叠加宽高条件，页面刚加载、卡片尚未完成布局时（宽高为 0）类名路径会失败，
+ * 于是回退到尺寸判据并命中更外层的右栏容器，把整栏模块一起隐藏。
+ * 5.24 第二版正是这样把「隐藏一张卡片」变成「隐藏整个右栏」的。
  */
 const isCardContainer = (el: HTMLElement): boolean => {
   try {
-    const cls = el.getAttribute('class') || '';
-    if (!HIDDEN_CARD_CLASS_NAME_REG.test(cls)) return false;
-    const rect = el.getBoundingClientRect();
-    if (rect.width < HIDDEN_CARD_MIN_WIDTH || rect.width > HIDDEN_CARD_MAX_WIDTH) return false;
-    if (rect.height < HIDDEN_CARD_MIN_HEIGHT) return false;
-    // 父级宽度也要落在卡片区间内：卡片挂在右栏（约 375）下可通过，
-    // 右栏自身挂在页面容器（1265）下会被排除，避免整列被吞掉。
-    const parentRect = el.parentElement ? el.parentElement.getBoundingClientRect() : null;
-    return !parentRect || (parentRect.width >= HIDDEN_CARD_MIN_WIDTH && parentRect.width <= HIDDEN_CARD_MAX_WIDTH);
+    return HIDDEN_CARD_CLASS_NAME_REG.test(el.getAttribute('class') || '');
   } catch {
     return false;
   }
 };
 
 /**
+ * 取标题所在的顶层列：右栏与主列都是 `.Topstory-container` 的直接子元素。
+ * 该元素是兜底边界——无论如何都不隐藏它本身，否则整列模块会一起消失。
+ */
+const getColumnOf = (titleNode: HTMLElement): HTMLElement | null => {
+  const container = dom(HIDDEN_CARD_ROOT_SELECTOR) || dom(HIDDEN_CARD_ROOT_SELECTOR_FALLBACK);
+  if (!container) return null;
+  let node: HTMLElement | null = titleNode;
+  while (node && node.parentElement && node.parentElement !== container) node = node.parentElement;
+  return node && node.parentElement === container ? node : null;
+};
+
+/**
  * 从命中的标题元素向上查找卡片容器。
  *
- * 类名判据优先（比尺寸可靠，且天然排除右栏）；类名失效时退回尺寸判据兜底：
- * 宽度区间过滤量级，高度 `>= 72` 排除标题行、`<= 640` 排除右栏容器。
- * 两轮都找不到返回 null（宁可不隐藏，也不误伤右栏等大容器）。
+ * 1. 类名判据：取最内层带 Card 词元的祖先，不看宽高（与 5.24 第一版一致）
+ * 2. 尺寸兜底：只在「列的直属子元素」这一层选，绝不继续向上，
+ *    保证最坏情况也只隐藏一张卡片，不会连累同一列的其他模块
  */
-const findHiddenCardContainer = (titleNode: HTMLElement): HTMLElement | null => {
-  // 第一优先：类名判据，从父级开始（避免命中标题元素自身）
+const findHiddenCardContainer = (titleNode: HTMLElement, column: HTMLElement): HTMLElement | null => {
   let current: HTMLElement | null = titleNode.parentElement;
   let depth = 0;
-  while (current && depth < HIDDEN_CARD_MAX_DEPTH_CLASS) {
+  while (current && current !== column && depth < HIDDEN_CARD_MAX_DEPTH_CLASS) {
     if (isCardContainer(current)) return current;
     current = current.parentElement;
     depth++;
   }
 
-  // 兜底：类名判据失效时退回尺寸判据
-  current = titleNode.parentElement;
-  depth = 0;
-  while (current && depth < HIDDEN_CARD_MAX_DEPTH) {
-    const rect = current.getBoundingClientRect();
-    const isCard =
-      rect.width >= HIDDEN_CARD_MIN_WIDTH &&
-      rect.width <= HIDDEN_CARD_MAX_WIDTH &&
-      rect.height >= HIDDEN_CARD_MIN_HEIGHT &&
-      rect.height <= HIDDEN_CARD_MAX_HEIGHT;
-    if (isCard) return current;
-    current = current.parentElement;
-    depth++;
-  }
-  return null;
+  let fallback: HTMLElement | null = titleNode.parentElement;
+  while (fallback && fallback.parentElement && fallback.parentElement !== column) fallback = fallback.parentElement;
+  if (!fallback || fallback.parentElement !== column) return null;
+  const rect = fallback.getBoundingClientRect();
+  if (rect.width < HIDDEN_CARD_MIN_WIDTH || rect.height < HIDDEN_CARD_MIN_HEIGHT) return null;
+  return fallback;
 };
 
 /** 零命中日志只提示一次，避免非主页每次重任务刷屏 */
@@ -199,8 +185,11 @@ export const syncHiddenCardsByTitle = async (forceResetLog = false): Promise<voi
       if (el.children.length > 1) return;
       const text = el.textContent?.trim();
       if (!text || !titles.has(text)) return;
-      const card = findHiddenCardContainer(el);
-      if (!card || card.hasAttribute(HIDDEN_BY_TITLE_ATTR)) return;
+      // 兜底边界：只在该标题所在的列内找卡片，绝不把整列当卡片
+      const column = getColumnOf(el);
+      if (!column) return;
+      const card = findHiddenCardContainer(el, column);
+      if (!card || card === column || card.hasAttribute(HIDDEN_BY_TITLE_ATTR)) return;
       card.setAttribute(HIDDEN_BY_TITLE_ATTR, '1');
       card.style.setProperty('display', 'none', 'important');
       hitCount++;

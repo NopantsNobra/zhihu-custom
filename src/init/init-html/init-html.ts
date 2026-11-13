@@ -48,6 +48,8 @@ export const initHTML = () => {
 
   // 按卡片标题兜底隐藏（类名会随知乎构建变化，初始化后执行一次）
   syncHiddenCardsByTitle().catch(() => undefined);
+  // 首次执行可能早于右栏卡片完成布局，补一次延迟执行（函数幂等，重复执行只会重算同一批节点）
+  setTimeout(() => syncHiddenCardsByTitle().catch(() => undefined), 1500);
 };
 
 /** 添加个人主页跳转 */
