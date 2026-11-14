@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         知乎修改器🤜持续更新🤛努力实现功能最全的知乎配置插件
 // @namespace    http://tampermonkey.net/
-// @version      5.25
+// @version      5.25.1
 // @description  知乎高性能模式，页面模块自定义隐藏，列表及回答内容过滤，保存浏览历史记录，推荐页内容缓存，一键邀请，复制代码块删除版权信息，列表种类和关键词强过滤并自动调用「不感兴趣」接口，屏蔽用户回答，视频下载，设置自动收起所有长回答或自动展开所有回答，移除登录提示弹窗，设置过滤故事档案局和盐选科普回答等知乎官方账号回答，手动调节文字大小，切换主题及深色模式调整，隐藏知乎热搜，列表添加标签种类，去除广告，设置购买链接显示方式，收藏夹内容、回答、文章导出为PDF，一键移除所有屏蔽选项，外链直接打开，键盘左右切换预览图片，快捷键收起时修正定位，更多功能请在插件里体验...
 // @compatible   edge Violentmonkey
 // @compatible   edge Tampermonkey
@@ -38,9 +38,10 @@
   var CLASS_HOME_RAIL = "ctz-home-rail";
   var CLASS_QUESTION_SHELL = "ctz-question-shell";
   var CLASS_QUESTION_COL = "ctz-question-col";
+  var CLASS_QUESTION_FLEX_SHELL = "ctz-question-flex-shell";
   var clearFallbackClasses = () => {
-    document.querySelectorAll(`.${CLASS_HOME_RAIL},.${CLASS_QUESTION_SHELL},.${CLASS_QUESTION_COL}`).forEach((el) => {
-      el.classList.remove(CLASS_HOME_RAIL, CLASS_QUESTION_SHELL, CLASS_QUESTION_COL);
+    document.querySelectorAll(`.${CLASS_HOME_RAIL},.${CLASS_QUESTION_SHELL},.${CLASS_QUESTION_COL},.${CLASS_QUESTION_FLEX_SHELL}`).forEach((el) => {
+      el.classList.remove(CLASS_HOME_RAIL, CLASS_QUESTION_SHELL, CLASS_QUESTION_COL, CLASS_QUESTION_FLEX_SHELL);
     });
   };
   var syncHasFallbackClasses = () => {
@@ -73,6 +74,14 @@
               child.classList.add(CLASS_QUESTION_COL);
             }
           });
+          let flexShell = page.parentElement;
+          while (flexShell && flexShell !== document.body && flexShell !== html) {
+            const hasAsideChild = Array.from(flexShell.children).some((el) => el.tagName === "ASIDE");
+            if (hasAsideChild && (flexShell.querySelector(".App-main") || flexShell.classList.contains("App-main"))) {
+              flexShell.classList.add(CLASS_QUESTION_FLEX_SHELL);
+            }
+            flexShell = flexShell.parentElement;
+          }
         }
       }
     } catch {
@@ -927,7 +936,7 @@
       const NAME_ARTICLE = ".Post-NormalSub>div,.zhuanlan .Post-Row-Content,.zhuanlan .css-pi1fiy";
       const NAME_USER_HOME = '#ProfileHeader,[itemprop="people"] .Profile-main';
       const NAME_COLLECTION = ".CollectionsDetailPage";
-      const xxxWidth = `${NAME_HOME}{width: ${versionSizeHome}!important;}${NAME_ANSWER}{width: ${versionSizeAnswer}!important;margin: 0 auto!important; padding: 0;}${NAME_ARTICLE}{width: ${versionSizeArticle}!important;}.zhuanlan .Post-SideActions{right: ${!versionArticleIsPercent ? `calc(50vw - ${+(versionArticle || "1000") / 2 + 150}px)` : `calc(50vw - ${+(versionArticlePercent || "70") / 2}vw + 150px)`}}${NAME_USER_HOME}{width: ${versionSizeUserHome}!important;}${NAME_COLLECTION}{width: ${versionSizeCollection}!important}${NAME_HOME},${NAME_ANSWER},${NAME_ARTICLE},${NAME_USER_HOME},${NAME_COLLECTION},.${CLASS_ZHIHU_COMMENT_DIALOG},.Topstory-body .${CLASS_ZHIHU_COMMENT_DIALOG},.PostIndex-body .${CLASS_ZHIHU_COMMENT_DIALOG}{min-width: ${VERSION_MIN_WIDTH}px!important;}` + fnReturnStr(
+      const xxxWidth = `${NAME_HOME}{width: ${versionSizeHome}!important;}${NAME_ANSWER}{width:min(${versionSizeAnswer},100%)!important;max-width:100%!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding:0;box-sizing:border-box!important;}${NAME_ARTICLE}{width: ${versionSizeArticle}!important;}.zhuanlan .Post-SideActions{right: ${!versionArticleIsPercent ? `calc(50vw - ${+(versionArticle || "1000") / 2 + 150}px)` : `calc(50vw - ${+(versionArticlePercent || "70") / 2}vw + 150px)`}}${NAME_USER_HOME}{width: ${versionSizeUserHome}!important;}${NAME_COLLECTION}{width: ${versionSizeCollection}!important}${NAME_HOME},${NAME_ANSWER},${NAME_ARTICLE},${NAME_USER_HOME},${NAME_COLLECTION},.${CLASS_ZHIHU_COMMENT_DIALOG},.Topstory-body .${CLASS_ZHIHU_COMMENT_DIALOG},.PostIndex-body .${CLASS_ZHIHU_COMMENT_DIALOG}{min-width: ${VERSION_MIN_WIDTH}px!important;}` + fnReturnStr(
         `.Topstory-body .${CLASS_ZHIHU_COMMENT_DIALOG}{width: ${versionSizeHome}!important;max-width:100vw;}.PostIndex-body .${CLASS_ZHIHU_COMMENT_DIALOG}{width: ${versionSizeArticle}!important;max-width:100vw;}` + fnReturnStr(`.${CLASS_ZHIHU_COMMENT_DIALOG}{width: ${versionSizeAnswer}!important;max-width:100vw;}`, location.pathname.includes("question")) + fnReturnStr(`.${CLASS_ZHIHU_COMMENT_DIALOG}{width: ${versionSizeCollection}!important;max-width:100vw;}`, location.pathname.includes("collection")) + fnReturnStr(`.${CLASS_ZHIHU_COMMENT_DIALOG}{width: ${versionSizeUserHome}!important;max-width:100vw;}`, location.pathname.includes("people")),
         commitModalSizeSameVersion
       );
@@ -965,8 +974,59 @@
         !!fontSizeForList
       ) + fnReturnStr(`.QuestionPage .RichContent-inner,.QuestionPage .ctz-list-item-time,.QuestionPage .CommentContent{font-size: ${fontSizeForAnswer}px}`, !!fontSizeForAnswer) + fnReturnStr(`.zhuanlan .Post-RichTextContainer,.zhuanlan .ctz-article-create-time,.zhuanlan .CommentContent{font-size: ${fontSizeForArticle}px}`, !!fontSizeForArticle) + fnReturnStr(`.zhuanlan .Post-Main .Post-Title{font-size: ${fontSizeForArticleTitle}px;}`, !!fontSizeForArticleTitle) + fnReturnStr(`.ContentItem-title,.HotItem-title{font-size: ${fontSizeForListTitle}px!important;}`, !!fontSizeForListTitle) + fnReturnStr(`.QuestionHeader-title{font-size: ${fontSizeForAnswerTitle}px!important;}`, !!fontSizeForAnswerTitle) + fnReturnStr(`p {line-height: ${contentLineHeight}px;}`, !!contentLineHeight);
       const xxxHomeNoSidebar = `html.ctz-home-no-sidebar .Topstory-container{width:100%!important;max-width:100%!important;margin-left:0!important;box-sizing:border-box!important}html.ctz-home-no-sidebar .ctz-home-side-column{display:none!important}html.ctz-home-no-sidebar .Topstory-mainColumn{width:auto!important;max-width:${versionSizeHome}!important;min-width:0!important;flex:1 1 auto!important;margin:0 auto!important}`;
-      const xxxHasFallback = `@supports not selector(:has(*)){html.ctz-home-page .ctz-home-rail{display:none!important}html.ctz-home-page .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}html.ctz-question-page nav.css-7guej9{display:none!important}html.ctz-question-page .QuestionPage,html.ctz-question-page .Question-mainColumn,html.ctz-question-page .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}html.ctz-question-page .ctz-question-shell{width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}html.ctz-question-page .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}html.ctz-question-page .QuestionPage>.ctz-question-col{width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}html.ctz-question-page .QuestionPage .ctz-question-col{width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}html.ctz-question-page .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}}`;
-      return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}html:has(.QuestionPage) nav.css-7guej9{display:none!important}html:has(.QuestionPage) .QuestionPage,html:has(.QuestionPage) .Question-mainColumn,html:has(.QuestionPage) .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}html:has(.QuestionPage) :has(.App-main),html:has(.QuestionPage) :has(>.QuestionPage){width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}html:has(.QuestionPage) .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}html:has(.QuestionPage) .QuestionPage>:has(.Question-mainColumn){width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}html:has(.QuestionPage) .QuestionPage :has(>.Question-mainColumn){width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}html:has(.QuestionPage) .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}` + xxxHomeNoSidebar + xxxHasFallback;
+      const questionLayoutCss = (branch) => {
+        const rules = [
+          {
+            has: "html:has(.QuestionPage) div:has(> aside):has(.App-main)",
+            fallback: "html.ctz-question-page .ctz-question-flex-shell",
+            decl: "display:block!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important"
+          },
+          {
+            has: "html:has(.QuestionPage) div:has(> aside):has(.App-main) > :not(:has(.App-main))",
+            fallback: "html.ctz-question-page .ctz-question-flex-shell > :not(.ctz-question-shell)",
+            decl: "display:none!important"
+          },
+          {
+            has: "html:has(.QuestionPage) div:has(> aside):has(.App-main) > :has(.App-main)",
+            fallback: "html.ctz-question-page .ctz-question-flex-shell > .ctz-question-shell",
+            decl: "display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important"
+          },
+          {
+            has: "html:has(.QuestionPage) .App-main",
+            fallback: "html.ctz-question-page .App-main",
+            decl: "display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important"
+          },
+          {
+            has: "html:has(.QuestionPage) .QuestionPage>:has(.Question-mainColumn)",
+            fallback: "html.ctz-question-page .ctz-question-col",
+            decl: "width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important"
+          },
+          {
+            has: "html:has(.QuestionPage) .QuestionPage :has(>.Question-mainColumn)",
+            fallback: "html.ctz-question-page .ctz-question-col",
+            decl: "width:100%!important;max-width:100%!important;padding:0!important;margin:0!important"
+          },
+          {
+            has: "html:has(.QuestionPage) .QuestionPage,html:has(.QuestionPage) .QuestionPage > div,html:has(.QuestionPage) .Question-mainColumn,html:has(.QuestionPage) .AnswersNavWrapper,html:has(.QuestionPage) .QuestionHeader-content,html:has(.QuestionPage) .QuestionHeader-footer-inner",
+            fallback: "html.ctz-question-page .QuestionPage,html.ctz-question-page .QuestionPage > div,html.ctz-question-page .Question-mainColumn,html.ctz-question-page .AnswersNavWrapper,html.ctz-question-page .QuestionHeader-content,html.ctz-question-page .QuestionHeader-footer-inner",
+            decl: `width:min(${versionSizeAnswer},100%)!important;max-width:100%!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;position:static!important;left:auto!important;right:auto!important;box-sizing:border-box!important`
+          },
+          {
+            has: "html:has(.QuestionPage) .QuestionPage .Question-mainColumn",
+            fallback: "html.ctz-question-page .QuestionPage .Question-mainColumn",
+            decl: "position:static!important;left:auto!important"
+          },
+          {
+            has: "html:has(.QuestionPage) nav.css-7guej9",
+            fallback: "html.ctz-question-page nav.css-7guej9",
+            decl: "display:none!important"
+          }
+        ];
+        return rules.map((rule) => `${rule[branch]}{${rule.decl}}`).join("");
+      };
+      const xxxQuestionPageHas = questionLayoutCss("has");
+      const xxxHasFallback = `@supports not selector(:has(*)){html.ctz-home-page .ctz-home-rail{display:none!important}html.ctz-home-page .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}` + questionLayoutCss("fallback") + `}`;
+      return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}` + xxxQuestionPageHas + xxxHomeNoSidebar + xxxHasFallback;
     }
   };
   var changeSizeBeforeResize = async () => {

@@ -16,10 +16,12 @@ const CLASS_HOME_RAIL = 'ctz-home-rail';
 const CLASS_QUESTION_SHELL = 'ctz-question-shell';
 /** 回答页主列包装层的降级标记，对应 .QuestionPage>:has(.Question-mainColumn) */
 const CLASS_QUESTION_COL = 'ctz-question-col';
+/** 回答页外层 flex 骨架的降级标记，对应 div:has(> aside):has(.App-main) */
+const CLASS_QUESTION_FLEX_SHELL = 'ctz-question-flex-shell';
 
 const clearFallbackClasses = () => {
-  document.querySelectorAll(`.${CLASS_HOME_RAIL},.${CLASS_QUESTION_SHELL},.${CLASS_QUESTION_COL}`).forEach((el) => {
-    el.classList.remove(CLASS_HOME_RAIL, CLASS_QUESTION_SHELL, CLASS_QUESTION_COL);
+  document.querySelectorAll(`.${CLASS_HOME_RAIL},.${CLASS_QUESTION_SHELL},.${CLASS_QUESTION_COL},.${CLASS_QUESTION_FLEX_SHELL}`).forEach((el) => {
+    el.classList.remove(CLASS_HOME_RAIL, CLASS_QUESTION_SHELL, CLASS_QUESTION_COL, CLASS_QUESTION_FLEX_SHELL);
   });
 };
 
@@ -69,6 +71,21 @@ export const syncHasFallbackClasses = () => {
             child.classList.add(CLASS_QUESTION_COL);
           }
         });
+        // 主列的直接父元素同样是列包装层（页面改版后可能多包一层）
+        page.querySelectorAll<HTMLElement>('.Question-mainColumn').forEach((column) => {
+          const parent = column.parentElement;
+          if (parent) parent.classList.add(CLASS_QUESTION_COL);
+        });
+        // 外层 flex 骨架：有 <aside> 直接子元素且后代含 .App-main 的祖先容器。
+        // 骨架里的 aside / spacer 会占住布局位置，需要在 CSS 侧折叠，故单独标记。
+        let flexShell: HTMLElement | null = page.parentElement;
+        while (flexShell && flexShell !== document.body && flexShell !== html) {
+          const hasAsideChild = Array.from(flexShell.children).some((el) => el.tagName === 'ASIDE');
+          if (hasAsideChild && (flexShell.querySelector('.App-main') || flexShell.classList.contains('App-main'))) {
+            flexShell.classList.add(CLASS_QUESTION_FLEX_SHELL);
+          }
+          flexShell = flexShell.parentElement;
+        }
       }
     }
   } catch {

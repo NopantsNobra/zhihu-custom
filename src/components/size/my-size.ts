@@ -80,7 +80,7 @@ export const mySize = {
       // 首页列表页面内容宽度
       `${NAME_HOME}{width: ${versionSizeHome}!important;}` +
       // 回答详情页面内容宽度
-      `${NAME_ANSWER}{width: ${versionSizeAnswer}!important;margin: 0 auto!important; padding: 0;}` +
+      `${NAME_ANSWER}{width:min(${versionSizeAnswer},100%)!important;max-width:100%!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding:0;box-sizing:border-box!important;}` +
       // 文章页面内容宽度
       `${NAME_ARTICLE}{width: ${versionSizeArticle}!important;}` +
       `.zhuanlan .Post-SideActions{right: ${
@@ -264,19 +264,77 @@ export const mySize = {
      * 所需类名由 syncHasFallbackClasses 维护：ctz-home-page / ctz-question-page /
      * ctz-home-rail / ctz-question-shell / ctz-question-col。
      */
+    /**
+     * 问题页布局补丁（v5.25.1）。
+     *
+     * 新版知乎问题页的外层骨架是 flex 行，直接子元素包含左导航 <aside> 与若干空 spacer。
+     * 只隐藏 rail 内部的 nav.css-7guej9 并不能回收这些 flex item 的占位，内容整体右移
+     * 约 176px，表现为「左侧留白远大于右侧」。这里把骨架改成普通块级容器、隐藏不含
+     * 内容列的直接子元素，再用 margin-inline:auto + min() 钳制让内容在不同视口下真居中。
+     *
+     * :has() 分支与 @supports 回退分支共用同一份 rules 数组，声明逐字一致，避免行为分叉。
+     * 回退分支所需的类名由 syncHasFallbackClasses() 维护。
+     */
+    const questionLayoutCss = (branch: 'has' | 'fallback') => {
+      const rules: { has: string; fallback: string; decl: string }[] = [
+        {
+          has: 'html:has(.QuestionPage) div:has(> aside):has(.App-main)',
+          fallback: 'html.ctz-question-page .ctz-question-flex-shell',
+          decl: 'display:block!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important'
+        },
+        {
+          has: 'html:has(.QuestionPage) div:has(> aside):has(.App-main) > :not(:has(.App-main))',
+          fallback: 'html.ctz-question-page .ctz-question-flex-shell > :not(.ctz-question-shell)',
+          decl: 'display:none!important'
+        },
+        {
+          has: 'html:has(.QuestionPage) div:has(> aside):has(.App-main) > :has(.App-main)',
+          fallback: 'html.ctz-question-page .ctz-question-flex-shell > .ctz-question-shell',
+          decl: 'display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important'
+        },
+        {
+          has: 'html:has(.QuestionPage) .App-main',
+          fallback: 'html.ctz-question-page .App-main',
+          decl: 'display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important'
+        },
+        {
+          has: 'html:has(.QuestionPage) .QuestionPage>:has(.Question-mainColumn)',
+          fallback: 'html.ctz-question-page .ctz-question-col',
+          decl: 'width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important'
+        },
+        {
+          has: 'html:has(.QuestionPage) .QuestionPage :has(>.Question-mainColumn)',
+          fallback: 'html.ctz-question-page .ctz-question-col',
+          decl: 'width:100%!important;max-width:100%!important;padding:0!important;margin:0!important'
+        },
+        {
+          has: 'html:has(.QuestionPage) .QuestionPage,html:has(.QuestionPage) .QuestionPage > div,html:has(.QuestionPage) .Question-mainColumn,html:has(.QuestionPage) .AnswersNavWrapper,html:has(.QuestionPage) .QuestionHeader-content,html:has(.QuestionPage) .QuestionHeader-footer-inner',
+          fallback: 'html.ctz-question-page .QuestionPage,html.ctz-question-page .QuestionPage > div,html.ctz-question-page .Question-mainColumn,html.ctz-question-page .AnswersNavWrapper,html.ctz-question-page .QuestionHeader-content,html.ctz-question-page .QuestionHeader-footer-inner',
+          decl: `width:min(${versionSizeAnswer},100%)!important;max-width:100%!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;position:static!important;left:auto!important;right:auto!important;box-sizing:border-box!important`
+        },
+        {
+          has: 'html:has(.QuestionPage) .QuestionPage .Question-mainColumn',
+          fallback: 'html.ctz-question-page .QuestionPage .Question-mainColumn',
+          decl: 'position:static!important;left:auto!important'
+        },
+        {
+          has: 'html:has(.QuestionPage) nav.css-7guej9',
+          fallback: 'html.ctz-question-page nav.css-7guej9',
+          decl: 'display:none!important'
+        }
+      ];
+      return rules.map((rule) => `${rule[branch]}{${rule.decl}}`).join('');
+    };
+    const xxxQuestionPageHas = questionLayoutCss('has');
     const xxxHasFallback =
       `@supports not selector(:has(*)){` +
       `html.ctz-home-page .ctz-home-rail{display:none!important}` +
       `html.ctz-home-page .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}` +
-      `html.ctz-question-page nav.css-7guej9{display:none!important}` +
-      `html.ctz-question-page .QuestionPage,html.ctz-question-page .Question-mainColumn,html.ctz-question-page .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}` +
-      `html.ctz-question-page .ctz-question-shell{width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}` +
-      `html.ctz-question-page .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}` +
-      `html.ctz-question-page .QuestionPage>.ctz-question-col{width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}` +
-      `html.ctz-question-page .QuestionPage .ctz-question-col{width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}` +
-      `html.ctz-question-page .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}` +
+      questionLayoutCss('fallback') +
       `}`;
 
-    return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}html:has(.QuestionPage) nav.css-7guej9{display:none!important}html:has(.QuestionPage) .QuestionPage,html:has(.QuestionPage) .Question-mainColumn,html:has(.QuestionPage) .AnswersNavWrapper{margin:0 auto!important;max-width:100vw!important}` + `html:has(.QuestionPage) :has(.App-main),html:has(.QuestionPage) :has(>.QuestionPage){width:auto!important;max-width:none!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;border-left:none!important;border-right:none!important;left:auto!important;right:auto!important;transform:none!important}html:has(.QuestionPage) .App-main{width:auto!important;max-width:100%!important;margin-left:auto!important;margin-right:auto!important;padding:0!important;border:none!important;left:auto!important;transform:none!important}html:has(.QuestionPage) .QuestionPage>:has(.Question-mainColumn){width:100%!important;max-width:100%!important;margin:0 auto!important;padding-left:0!important}html:has(.QuestionPage) .QuestionPage :has(>.Question-mainColumn){width:100%!important;max-width:100%!important;padding:0!important;margin:0!important}html:has(.QuestionPage) .QuestionPage .Question-mainColumn{position:relative!important;left:-38.5px!important}` + xxxHomeNoSidebar + xxxHasFallback;
+    return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth +
+      `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}` +
+      xxxQuestionPageHas + xxxHomeNoSidebar + xxxHasFallback;
   },
 };
