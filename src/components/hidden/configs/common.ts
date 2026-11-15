@@ -9,7 +9,7 @@ export const HIDDEN_ITEM_COMMON: IHiddenItem = {
       {
         label: '隐藏修改器弹出图标 ⚙︎',
         value: 'hiddenOpenButton',
-        css: '#CTZ_OPEN_CLOSE{display:none!important;}',
+        css: '#CTZ_OPEN_CLOSE,#CTZ_GLOBAL_RAIL_TOGGLE{display:none!important;}',
       },
     ],
     [

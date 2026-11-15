@@ -179,6 +179,7 @@ export const CONFIG_DEFAULT: IPfConfig = {
   ...CONFIG_HIDDEN_DEFAULT,
   ...CONFIG_FILTER_DEFAULT,
   ...CONFIG_SUSPENSION,
+  hiddenGlobalSideRail: false,
   fetchInterceptStatus: true,
   customizeCss: '',
   answerOpen: EAnswerOpen.默认,

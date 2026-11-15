@@ -20,7 +20,7 @@ import { myPageFilterSetting } from './components/page-filter-setting';
 import { changeICO, changeTitle, myCachePageTitle } from './components/page-title';
 import { myCollectionExport, printArticle, printPeopleAnswer, printPeopleArticles } from './components/print';
 import { closeAllSelect } from './components/select';
-import { changeSizeBeforeResize, mySize, syncHomeSidebarCollapse } from './components/size';
+import { changeSizeBeforeResize, mySize, syncArticleSidebarCollapse, syncGlobalRailCollapse, syncHomeSidebarCollapse } from './components/size';
 import { initSuspensionSwitch, suspensionPickupAttribute } from './components/suspension';
 import { addArticleTime, addQuestionTime } from './components/time';
 import { myListenUserHomeList } from './components/user-home';
@@ -84,6 +84,9 @@ import { INNER_CSS } from './web-resources';
     appendHiddenStyle();
     myBackground.init();
     mySize.init();
+    // v5.30：初始化时同步全局悬浮栏总控与文章页右栏折叠；容器晚于脚本渲染时由一次性观察器补判定
+    syncGlobalRailCollapse().catch(() => undefined);
+    syncArticleSidebarCollapse().catch(() => undefined);
     checkThemeDarkOrLight();
     changeVideoStyle();
 
@@ -217,6 +220,9 @@ import { INNER_CSS } from './web-resources';
     }
 
     syncHasFallbackClasses();
+    // v5.30：body 就绪后再同步一次，保证一键按钮与两处折叠状态在首屏落地
+    syncGlobalRailCollapse().catch(() => undefined);
+    syncArticleSidebarCollapse().catch(() => undefined);
     if (!isSupportHasSelector()) {
       fnLog('当前浏览器不支持 CSS :has()，已启用 @supports 类名回退：宽度与主页布局补丁仍可生效；若个别细节缺失，可用面板「运行自检」定位');
     }
@@ -257,6 +263,9 @@ import { INNER_CSS } from './web-resources';
     // SPA 换页后页面类型与右栏 DOM 都会变，重算降级类名与折叠状态
     syncHasFallbackClasses();
     syncHomeSidebarCollapse().catch(() => undefined);
+    // v5.30：SPA 换页后同步重判文章页右栏折叠与全局悬浮栏总控
+    syncArticleSidebarCollapse().catch(() => undefined);
+    syncGlobalRailCollapse().catch(() => undefined);
     // 重置监听起点
     myListenList.reset();
     myListenSearchListItem.reset();

@@ -255,6 +255,8 @@ export interface IConfigHidden {
   hiddenSelectedTextPopup?: boolean;
   /** 专栏大家都在搜 */
   hiddenZhuanlanHotSearchCard?: boolean;
+  /** 一键关闭左侧悬浮栏（所有页面生效），关闭时同步回收占位与偏移 */
+  hiddenGlobalSideRail?: boolean;
 }
 
 /** 屏蔽内容模块默认配置 */

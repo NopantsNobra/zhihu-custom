@@ -6,7 +6,7 @@ import { createHTMLHiddenConfig, syncHiddenCardsByTitle } from '../../components
 import { createHTMLNotInterestedList } from '../../components/not-interested';
 import { createHTMLTitleICOChange } from '../../components/page-title';
 import { createHTMLMySelect } from '../../components/select';
-import { createHTMLSizeSetting, syncHomeSidebarCollapse } from '../../components/size';
+import { createHTMLSizeSetting, syncArticleSidebarCollapse, syncGlobalRailCollapse, syncHomeSidebarCollapse } from '../../components/size';
 import { store } from '../../store';
 import { dom, domC } from '../../tools';
 import { INNER_HTML } from '../../web-resources';
@@ -53,6 +53,10 @@ export const initHTML = () => {
   // 右栏九个模块全部隐藏时收掉整列；函数自带一次性观察器，容器晚于面板渲染时也能当帧补上
   syncHomeSidebarCollapse().catch(() => undefined);
   setTimeout(() => syncHomeSidebarCollapse().catch(() => undefined), 1500);
+  // v5.30：文章页右栏折叠与全局悬浮栏总控同步判定（函数幂等，容器晚于面板渲染时自带一次性观察器）
+  syncArticleSidebarCollapse().catch(() => undefined);
+  syncGlobalRailCollapse().catch(() => undefined);
+  setTimeout(() => syncArticleSidebarCollapse().catch(() => undefined), 1500);
 };
 
 /** 添加个人主页跳转 */

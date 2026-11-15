@@ -5,7 +5,7 @@ import { appendHiddenStyle, syncHiddenCardsByTitle } from './hidden';
 import { previewGIF } from './image';
 import { myListenList } from './listen-list';
 import { changeICO, changeTitle } from './page-title';
-import { mySize, syncHomeSidebarCollapse } from './size';
+import { mySize, syncArticleSidebarCollapse, syncGlobalRailCollapse, syncHomeSidebarCollapse } from './size';
 import { onChangeSuspensionSwitch, suspensionPickupAttribute } from './suspension';
 import { addArticleTime, addQuestionTime } from './time';
 
@@ -143,12 +143,17 @@ export const fnChanger = async (ev: HTMLInputElement) => {
   }
 
   if (/^hidden/.test(name)) {
-    // 三件事按序做完再让浏览器绘制：重建隐藏样式 → 重算标题兜底 → 重判右栏折叠。
-    // 之前是并行 fire-and-forget，样式表与折叠类可能分两帧落地，切换时会闪一下空白。
+    // 六件事按序做完再让浏览器绘制：重建隐藏样式 → 重算标题兜底 → 重判主页右栏折叠
+    // → 重建尺寸样式 → 重判文章页右栏折叠 → 重判全局悬浮栏总控。
+    // 之前是并行 fire-and-forget，样式表与折叠类可能分两帧落地，切换时会闪一下空白；
+    // 且 hiddenGlobalSideRail 这类以 hidden 开头的开关必须重建尺寸样式，v5.30 新增的布局补丁才会生效。
     await appendHiddenStyle();
     // forceResetLog=true：配置变更属于重新判定场景，允许再提示一次零命中
     await syncHiddenCardsByTitle(true);
     await syncHomeSidebarCollapse();
+    await mySize.change();
+    await syncArticleSidebarCollapse();
+    await syncGlobalRailCollapse();
     return;
   }
   if (doCssVersion.includes(name)) {

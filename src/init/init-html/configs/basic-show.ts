@@ -3,6 +3,7 @@ import { ICommonContent } from '../types';
 /** 基础设置 - 显示设置部分 */
 export const BASIC_SHOW: ICommonContent[][] = [
   [
+    { label: '<b style="color:#ec7259">一键关闭左侧悬浮栏（所有页面生效）</b>', value: 'hiddenGlobalSideRail' },
     { label: `列表 - 标题类别显示<b style="color: #ec7259">「问题」</b>`, value: 'listTitleTagQuestion' },
     { label: `列表 - 标题类别显示<b style="color: #00965e">「文章」</b>`, value: 'listTitleTagArticle' },
     { label: `列表 - 标题类别显示<b style="color: #12c2e9">「视频」</b>`, value: 'listTitleTagVideo' },

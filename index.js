@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         知乎修改器🤜持续更新🤛努力实现功能最全的知乎配置插件
 // @namespace    http://tampermonkey.net/
-// @version      5.25.1
+// @version      5.30
 // @description  知乎高性能模式，页面模块自定义隐藏，列表及回答内容过滤，保存浏览历史记录，推荐页内容缓存，一键邀请，复制代码块删除版权信息，列表种类和关键词强过滤并自动调用「不感兴趣」接口，屏蔽用户回答，视频下载，设置自动收起所有长回答或自动展开所有回答，移除登录提示弹窗，设置过滤故事档案局和盐选科普回答等知乎官方账号回答，手动调节文字大小，切换主题及深色模式调整，隐藏知乎热搜，列表添加标签种类，去除广告，设置购买链接显示方式，收藏夹内容、回答、文章导出为PDF，一键移除所有屏蔽选项，外链直接打开，键盘左右切换预览图片，快捷键收起时修正定位，更多功能请在插件里体验...
 // @compatible   edge Violentmonkey
 // @compatible   edge Tampermonkey
@@ -73,6 +73,10 @@
             if (child.querySelector(".Question-mainColumn") || child.classList.contains("Question-mainColumn")) {
               child.classList.add(CLASS_QUESTION_COL);
             }
+          });
+          page.querySelectorAll(".Question-mainColumn").forEach((column) => {
+            const parent = column.parentElement;
+            if (parent) parent.classList.add(CLASS_QUESTION_COL);
           });
           let flexShell = page.parentElement;
           while (flexShell && flexShell !== document.body && flexShell !== html) {
@@ -743,138 +747,6 @@
     { label: "用户主页宽度", value: "versionUserHome" },
     { label: "收藏夹宽度", value: "versionCollection" }
   ];
-  var HOME_SIDEBAR_KEYS = [
-    "hiddenHomeCreatorEntrance",
-    "hiddenHomeQuanzi",
-    "hiddenYanXuanWriter",
-    "hiddenHomeRecommendFollow",
-    "hiddenHomeCategory",
-    "hiddenHomeCategoryMore",
-    "hiddenHomeFooter",
-    "hiddenHomeHotSearch",
-    "hiddenHomePayAsk"
-  ];
-  var HOME_SIDEBAR_ANCHORS = [
-    ["创作中心", ".Topstory .css-19idom"],
-    ["圈子", ".Card.css-18gpi2u"],
-    ["盐选作者平台", ".KfeCollection-CreateSaltCard"],
-    ["推荐关注", ".Topstory .css-1iaxl4o"],
-    ["分类圆桌", ".Topstory .GlobalSideBar-category"],
-    ["更多分类", '.Topstory .Card[aria-label="更多分类入口"]'],
-    ["知乎指南", ".Topstory .Footer"],
-    ["大家都在搜", ".Topstory .HotSearchCard"],
-    ["付费咨询", ".Topstory .css-1dyj6jm"]
-  ];
-  var CLASS_NO_SIDEBAR = "ctz-home-no-sidebar";
-  var CLASS_SIDE_COLUMN = "ctz-home-side-column";
-  var SIDE_COLUMN_ANCHORS = [
-    ".GlobalSideBar-category",
-    ".GlobalSideBar",
-    ".HotSearchCard",
-    ".Footer",
-    "footer",
-    '[aria-label="更多分类入口"]',
-    '[class*="CreateSaltCard"]',
-    '[class*="RecommendFollow"]',
-    ".css-19idom",
-    ".css-18gpi2u",
-    ".css-1dyj6jm",
-    ".Card"
-  ];
-  var clearSideColumnMarks = () => {
-    document.querySelectorAll(`.${CLASS_SIDE_COLUMN}`).forEach((el) => el.classList.remove(CLASS_SIDE_COLUMN));
-  };
-  var getTopLevelColumn = (node, container) => {
-    let cur = node;
-    while (cur && cur.parentElement && cur.parentElement !== container) cur = cur.parentElement;
-    return cur && cur.parentElement === container ? cur : null;
-  };
-  var locateColumns = () => {
-    const container = dom(".Topstory-container") || dom(".Topstory");
-    if (!container) return null;
-    const mainNode = dom(".Topstory-mainColumn", container) || dom(".Topstory-mainColumn");
-    if (!mainNode) return null;
-    const main = getTopLevelColumn(mainNode, container);
-    if (!main) return null;
-    const children = Array.from(container.children);
-    const mainIndex = children.indexOf(main);
-    if (mainIndex < 0) return null;
-    const candidates = children.filter((el, i) => i > mainIndex && el !== main);
-    const hasAnchor = (el) => SIDE_COLUMN_ANCHORS.some((sel) => {
-      try {
-        return el.matches(sel) || !!el.querySelector(sel);
-      } catch {
-        return false;
-      }
-    });
-    const isRightOfMain = (el) => {
-      const r = el.getBoundingClientRect();
-      const m = main.getBoundingClientRect();
-      return r.width > 0 && r.left >= m.right - 8;
-    };
-    const side = candidates.find((el) => hasAnchor(el)) || (candidates.length === 1 && isRightOfMain(candidates[0]) ? candidates[0] : void 0);
-    return side ? { container, main, side } : null;
-  };
-  var inspectHomeSidebar = () => {
-    const container = dom(".Topstory-container") || dom(".Topstory");
-    const mainNode = container ? dom(".Topstory-mainColumn", container) || dom(".Topstory-mainColumn") : void 0;
-    const columns = locateColumns();
-    return {
-      容器已找到: !!container,
-      主列已找到: !!mainNode,
-      右栏列已识别: !!columns?.side,
-      右栏类名: columns?.side.className || "",
-      右栏宽度: columns ? Math.round(columns.side.getBoundingClientRect().width) : 0,
-      主列宽度: mainNode ? Math.round(mainNode.getBoundingClientRect().width) : 0,
-      折叠已生效: document.documentElement.classList.contains(CLASS_NO_SIDEBAR)
-    };
-  };
-  var containerObserver;
-  var observerTimer;
-  var stopWatching = () => {
-    containerObserver?.disconnect();
-    containerObserver = void 0;
-    if (observerTimer) clearTimeout(observerTimer);
-    observerTimer = void 0;
-  };
-  var watchForContainerOnce = () => {
-    if (containerObserver || typeof MutationObserver === "undefined") return;
-    if (!["/", "/follow", "/hot", "/zvideo"].includes(location.pathname)) return;
-    const observer = new MutationObserver(() => {
-      if (!dom(".Topstory-container") && !dom(".Topstory")) return;
-      stopWatching();
-      syncHomeSidebarCollapse().catch(() => void 0);
-    });
-    containerObserver = observer;
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    observerTimer = setTimeout(stopWatching, 1e4);
-  };
-  var syncHomeSidebarCollapse = async () => {
-    try {
-      const config = await myStorage.getConfig();
-      const html = document.documentElement;
-      const allHidden = HOME_SIDEBAR_KEYS.every((key) => !!config[key]);
-      if (!allHidden) {
-        stopWatching();
-        html.classList.remove(CLASS_NO_SIDEBAR);
-        clearSideColumnMarks();
-        return;
-      }
-      const columns = locateColumns();
-      if (!columns) {
-        html.classList.remove(CLASS_NO_SIDEBAR);
-        clearSideColumnMarks();
-        watchForContainerOnce();
-        return;
-      }
-      stopWatching();
-      html.classList.remove(CLASS_NO_SIDEBAR);
-      clearSideColumnMarks();
-      columns.side.classList.add(CLASS_SIDE_COLUMN);
-      html.classList.add(CLASS_NO_SIDEBAR);
-    } catch {
-    }
-  };
   var mySize = {
     init: async function() {
       fnAppendStyle("CTZ_STYLE_VERSION", await this.content());
@@ -1026,7 +898,371 @@
       };
       const xxxQuestionPageHas = questionLayoutCss("has");
       const xxxHasFallback = `@supports not selector(:has(*)){html.ctz-home-page .ctz-home-rail{display:none!important}html.ctz-home-page .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}` + questionLayoutCss("fallback") + `}`;
-      return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}` + xxxQuestionPageHas + xxxHomeNoSidebar + xxxHasFallback;
+      const xxxGlobalRail = `html.ctz-no-rail div:has(> aside):has(main.App-main){display:block!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}html.ctz-no-rail div:has(> aside):has(main.App-main) > :not(:has(main.App-main)){display:none!important}html.ctz-no-rail div:has(> aside):has(main.App-main) > :has(main.App-main){display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important}html.ctz-no-rail .ctz-global-rail-shell{display:block!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}html.ctz-no-rail .ctz-global-rail-placeholder{display:none!important}html.ctz-no-rail .ctz-global-rail-content{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important}html.ctz-no-rail main.App-main{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important}html.ctz-no-rail .Topstory-container{width:100%!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important}`;
+      const xxxArticleNoSidebar = `html.ctz-article-no-sidebar .ctz-article-side-column{display:none!important}html.ctz-article-no-sidebar .ctz-article-row{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important}html.ctz-article-no-sidebar .ctz-article-main-col{width:100%!important;max-width:100%!important;min-width:0!important;padding-left:0!important;padding-right:0!important;box-sizing:border-box!important}html.ctz-article-no-sidebar .ctz-article-main-col > *{width:100%!important}html.ctz-article-no-sidebar .ctz-article-main-col > * > *{max-width:100%!important}html.ctz-article-no-sidebar .Post-content{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}html.ctz-article-no-sidebar article.Post-Main,html.ctz-article-no-sidebar .Post-RichTextContainer,html.ctz-article-no-sidebar .Post-Title,html.ctz-article-no-sidebar .Post-Header,html.ctz-article-no-sidebar .Recommendations-Main{width:min(${versionSizeArticle},100%)!important;max-width:100%!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important}html.ctz-article-no-sidebar .Post-NormalSub>div,html.ctz-article-no-sidebar .Post-Row-Content{width:min(${versionSizeArticle},100%)!important;max-width:100%!important;min-width:0!important}html.ctz-article-no-sidebar article.Post-Main{max-width:100vw!important}html.ctz-article-no-sidebar .Post-NormalSub>div,html.ctz-article-no-sidebar .Post-Row-Content,html.ctz-article-no-sidebar .css-pi1fiy,html.ctz-article-no-sidebar .Post-content{min-width:0!important}html.ctz-article-no-sidebar .zhuanlan .Post-SideActions{right:calc(50vw - min(${versionSizeArticle},100%)/2)!important}`;
+      return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth + `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}` + xxxQuestionPageHas + xxxHomeNoSidebar + xxxHasFallback + xxxGlobalRail + xxxArticleNoSidebar;
+    }
+  };
+  var ARTICLE_SIDEBAR_KEYS = [
+    "hiddenZhuanlanAuthorCard",
+    "hiddenZhuanlanHotSearchCard",
+    "hiddenZhuanlan"
+  ];
+  var CLASS_NO_SIDEBAR = "ctz-article-no-sidebar";
+  var CLASS_NO_RAIL = "ctz-no-rail";
+  var CLASS_ROW = "ctz-article-row";
+  var CLASS_SIDE = "ctz-article-side-column";
+  var CLASS_MAIN = "ctz-article-main-col";
+  var CLASS_RAIL_SHELL = "ctz-global-rail-shell";
+  var CLASS_RAIL_PLACEHOLDER = "ctz-global-rail-placeholder";
+  var CLASS_RAIL_CONTENT = "ctz-global-rail-content";
+  var SIDE_ANCHOR_SELECTOR = 'a[aria-label="边栏锚点"]';
+  var TOGGLE_ID = "CTZ_GLOBAL_RAIL_TOGGLE";
+  var TOGGLE_STYLE_ID = "CTZ_STYLE_GLOBAL_RAIL_TOGGLE";
+  var TOGGLE_CSS = `#CTZ_GLOBAL_RAIL_TOGGLE{position:fixed;right:56px;bottom:4px;z-index:200;height:40px;padding:0 12px;display:flex;align-items:center;justify-content:center;background:#f6f6f6;color:#333;border:2px solid #ebebeb;border-radius:8px;font-size:12px;line-height:1;cursor:pointer;opacity:.85;user-select:none;box-sizing:border-box;white-space:nowrap;outline:none}#CTZ_GLOBAL_RAIL_TOGGLE:hover{opacity:1}#CTZ_GLOBAL_RAIL_TOGGLE:focus-visible{box-shadow:0 0 0 2px #0066ff}#CTZ_GLOBAL_RAIL_TOGGLE.ctz-rail-off{background:#ec7259;color:#fff;border-color:#ec7259}@media (prefers-color-scheme: dark){#CTZ_GLOBAL_RAIL_TOGGLE:not(.ctz-rail-off){background:#3a3a3a;color:#f0f0f0;border-color:#555}}`;
+  var isArticlePage = () => location.hostname === "zhuanlan.zhihu.com" || /^\/p\//.test(location.pathname);
+  var clearArticleColumnMarks = () => {
+    document.querySelectorAll(`.${CLASS_ROW},.${CLASS_SIDE},.${CLASS_MAIN}`).forEach((el) => {
+      el.classList.remove(CLASS_ROW, CLASS_SIDE, CLASS_MAIN);
+    });
+  };
+  var clearGlobalRailMarks = () => {
+    document.querySelectorAll(`.${CLASS_RAIL_SHELL},.${CLASS_RAIL_PLACEHOLDER},.${CLASS_RAIL_CONTENT}`).forEach((el) => {
+      el.classList.remove(CLASS_RAIL_SHELL, CLASS_RAIL_PLACEHOLDER, CLASS_RAIL_CONTENT);
+    });
+  };
+  var markGlobalRailShell = () => {
+    clearGlobalRailMarks();
+    const appMain = document.querySelector("main.App-main");
+    if (!appMain) return;
+    let shell = appMain.parentElement;
+    while (shell && shell !== document.body && shell !== document.documentElement) {
+      const hasAsideChild = Array.from(shell.children).some((el) => el.tagName === "ASIDE");
+      if (hasAsideChild && (shell.querySelector("main.App-main") || shell.classList.contains("App-main"))) break;
+      shell = shell.parentElement;
+    }
+    if (!shell || shell === document.body || shell === document.documentElement) return;
+    shell.classList.add(CLASS_RAIL_SHELL);
+    Array.from(shell.children).forEach((child) => {
+      const el = child;
+      if (el.matches("main.App-main") || el.querySelector("main.App-main")) {
+        el.classList.add(CLASS_RAIL_CONTENT);
+      } else {
+        el.classList.add(CLASS_RAIL_PLACEHOLDER);
+      }
+    });
+  };
+  var locateArticleColumns = () => {
+    try {
+      const article = dom("article.Post-Main");
+      if (!article) return null;
+      const markedRow = document.querySelector(`.${CLASS_ROW}`);
+      if (markedRow && markedRow.contains(article)) {
+        const markedMain = markedRow.querySelector(`.${CLASS_MAIN}`);
+        const markedSide = markedRow.querySelector(`.${CLASS_SIDE}`);
+        if (markedMain && markedSide && markedMain !== markedSide && markedMain.contains(article)) {
+          return { row: markedRow, side: markedSide, main: markedMain };
+        }
+      }
+      let row = article.parentElement;
+      while (row && row !== document.body && row !== document.documentElement) {
+        const display = window.getComputedStyle(row).display;
+        const isFlexRow = (display === "flex" || display === "inline-flex") && row.children.length >= 2;
+        if (isFlexRow || row.classList.contains(CLASS_ROW)) break;
+        row = row.parentElement;
+      }
+      if (!row || row === document.body || row === document.documentElement) return null;
+      const rowDisplay = window.getComputedStyle(row).display;
+      if (rowDisplay !== "flex" && rowDisplay !== "inline-flex" && !row.classList.contains(CLASS_ROW)) return null;
+      if (row.children.length < 2) return null;
+      const children = Array.from(row.children);
+      const hasArticle = (el) => el.matches("article.Post-Main") || !!el.querySelector("article.Post-Main");
+      const hasSideAnchor = (el) => {
+        try {
+          return el.matches(SIDE_ANCHOR_SELECTOR) || !!el.querySelector(SIDE_ANCHOR_SELECTOR);
+        } catch {
+          return false;
+        }
+      };
+      const main = children.find(hasArticle);
+      let side = children.find(hasSideAnchor);
+      if (!side) side = children[children.length - 1];
+      if (!main || !side || main === side) return null;
+      return { row, side, main };
+    } catch {
+      return null;
+    }
+  };
+  var inspectSideChildren = (side) => {
+    const children = Array.from(side.children);
+    const collapsed = document.documentElement.classList.contains(CLASS_NO_SIDEBAR);
+    const prevDisplay = side.style.getPropertyValue("display");
+    const prevPriority = side.style.getPropertyPriority("display");
+    if (collapsed) side.style.setProperty("display", "block", "important");
+    let visible = 0;
+    children.forEach((child) => {
+      let display = "";
+      let visibility = "";
+      try {
+        const style = window.getComputedStyle(child);
+        display = style.display;
+        visibility = style.visibility;
+      } catch {
+      }
+      if (display !== "none" && visibility !== "hidden" && child.offsetHeight > 0) visible++;
+    });
+    if (collapsed) {
+      if (prevDisplay) side.style.setProperty("display", prevDisplay, prevPriority);
+      else side.style.removeProperty("display");
+    }
+    return { total: children.length, visible };
+  };
+  var articleObserver;
+  var observerTimer;
+  var stopWatching = () => {
+    articleObserver?.disconnect();
+    articleObserver = void 0;
+    if (observerTimer) clearTimeout(observerTimer);
+    observerTimer = void 0;
+  };
+  var watchForArticleContainerOnce = () => {
+    if (articleObserver || typeof MutationObserver === "undefined") return;
+    if (!isArticlePage()) return;
+    const observer = new MutationObserver(() => {
+      if (!dom("article.Post-Main")) return;
+      stopWatching();
+      syncArticleSidebarCollapse().catch(() => void 0);
+    });
+    articleObserver = observer;
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    observerTimer = setTimeout(stopWatching, 1e4);
+  };
+  var syncArticleSidebarCollapse = async () => {
+    try {
+      const config = await myStorage.getConfig();
+      const html = document.documentElement;
+      const allKeysHidden = ARTICLE_SIDEBAR_KEYS.every((key) => !!config[key]);
+      if (!isArticlePage()) {
+        stopWatching();
+        html.classList.remove(CLASS_NO_SIDEBAR);
+        clearArticleColumnMarks();
+        return;
+      }
+      const columns = locateArticleColumns();
+      if (!columns) {
+        html.classList.remove(CLASS_NO_SIDEBAR);
+        clearArticleColumnMarks();
+        watchForArticleContainerOnce();
+        return;
+      }
+      const { total, visible } = inspectSideChildren(columns.side);
+      const shouldCollapse = visible === 0 && (total > 0 || allKeysHidden);
+      const htmlCollapsed = html.classList.contains(CLASS_NO_SIDEBAR);
+      const marksApplied = columns.row.classList.contains(CLASS_ROW) && columns.side.classList.contains(CLASS_SIDE) && columns.main.classList.contains(CLASS_MAIN);
+      stopWatching();
+      if (!shouldCollapse) {
+        if (htmlCollapsed || marksApplied) {
+          html.classList.remove(CLASS_NO_SIDEBAR);
+          clearArticleColumnMarks();
+        }
+        return;
+      }
+      if (htmlCollapsed && marksApplied) return;
+      html.classList.add(CLASS_NO_SIDEBAR);
+      columns.row.classList.add(CLASS_ROW);
+      columns.side.classList.add(CLASS_SIDE);
+      columns.main.classList.add(CLASS_MAIN);
+    } catch {
+    }
+  };
+  var lastToggleChecked;
+  var ensureToggleButton = () => {
+    if (!document.body || !document.getElementById("CTZ_MAIN")) return void 0;
+    const existing = document.getElementById(TOGGLE_ID);
+    if (existing) return existing;
+    fnAppendStyle(TOGGLE_STYLE_ID, TOGGLE_CSS);
+    const button = domC("div", {
+      id: TOGGLE_ID,
+      title: "点击切换：关闭 / 恢复知乎左侧悬浮栏（所有页面生效）",
+      innerText: "左悬浮栏：已开启",
+      role: "button",
+      tabIndex: 0
+    });
+    const onClick = async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        const config = await myStorage.getConfig();
+        const next = !config.hiddenGlobalSideRail;
+        await myStorage.updateConfigItem("hiddenGlobalSideRail", next);
+        await mySize.change();
+        await syncArticleSidebarCollapse();
+        await syncGlobalRailCollapse();
+        const panelInput = document.querySelector('input[name="hiddenGlobalSideRail"]');
+        if (panelInput) panelInput.checked = next;
+      } catch {
+      }
+    };
+    button.addEventListener("click", onClick);
+    button.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") onClick(event);
+    });
+    document.body.appendChild(button);
+    lastToggleChecked = void 0;
+    return button;
+  };
+  var syncGlobalRailCollapse = async () => {
+    try {
+      const config = await myStorage.getConfig();
+      const html = document.documentElement;
+      const enabled = !!config.hiddenGlobalSideRail;
+      if (enabled) {
+        html.classList.add(CLASS_NO_RAIL);
+        const marked = document.querySelector(`.${CLASS_RAIL_SHELL}`);
+        if (!marked || !marked.querySelector("main.App-main")) markGlobalRailShell();
+      } else {
+        html.classList.remove(CLASS_NO_RAIL);
+        clearGlobalRailMarks();
+      }
+      const button = ensureToggleButton();
+      if (!button || lastToggleChecked === enabled) return;
+      lastToggleChecked = enabled;
+      button.innerText = enabled ? "左悬浮栏：已关闭" : "左悬浮栏：已开启";
+      button.classList.toggle("ctz-rail-off", enabled);
+      button.setAttribute("aria-pressed", enabled ? "true" : "false");
+    } catch {
+    }
+  };
+  var HOME_SIDEBAR_KEYS = [
+    "hiddenHomeCreatorEntrance",
+    "hiddenHomeQuanzi",
+    "hiddenYanXuanWriter",
+    "hiddenHomeRecommendFollow",
+    "hiddenHomeCategory",
+    "hiddenHomeCategoryMore",
+    "hiddenHomeFooter",
+    "hiddenHomeHotSearch",
+    "hiddenHomePayAsk"
+  ];
+  var HOME_SIDEBAR_ANCHORS = [
+    ["创作中心", ".Topstory .css-19idom"],
+    ["圈子", ".Card.css-18gpi2u"],
+    ["盐选作者平台", ".KfeCollection-CreateSaltCard"],
+    ["推荐关注", ".Topstory .css-1iaxl4o"],
+    ["分类圆桌", ".Topstory .GlobalSideBar-category"],
+    ["更多分类", '.Topstory .Card[aria-label="更多分类入口"]'],
+    ["知乎指南", ".Topstory .Footer"],
+    ["大家都在搜", ".Topstory .HotSearchCard"],
+    ["付费咨询", ".Topstory .css-1dyj6jm"]
+  ];
+  var CLASS_NO_SIDEBAR2 = "ctz-home-no-sidebar";
+  var CLASS_SIDE_COLUMN = "ctz-home-side-column";
+  var SIDE_COLUMN_ANCHORS = [
+    ".GlobalSideBar-category",
+    ".GlobalSideBar",
+    ".HotSearchCard",
+    ".Footer",
+    "footer",
+    '[aria-label="更多分类入口"]',
+    '[class*="CreateSaltCard"]',
+    '[class*="RecommendFollow"]',
+    ".css-19idom",
+    ".css-18gpi2u",
+    ".css-1dyj6jm",
+    ".Card"
+  ];
+  var clearSideColumnMarks = () => {
+    document.querySelectorAll(`.${CLASS_SIDE_COLUMN}`).forEach((el) => el.classList.remove(CLASS_SIDE_COLUMN));
+  };
+  var getTopLevelColumn = (node, container) => {
+    let cur = node;
+    while (cur && cur.parentElement && cur.parentElement !== container) cur = cur.parentElement;
+    return cur && cur.parentElement === container ? cur : null;
+  };
+  var locateColumns = () => {
+    const container = dom(".Topstory-container") || dom(".Topstory");
+    if (!container) return null;
+    const mainNode = dom(".Topstory-mainColumn", container) || dom(".Topstory-mainColumn");
+    if (!mainNode) return null;
+    const main = getTopLevelColumn(mainNode, container);
+    if (!main) return null;
+    const children = Array.from(container.children);
+    const mainIndex = children.indexOf(main);
+    if (mainIndex < 0) return null;
+    const candidates = children.filter((el, i) => i > mainIndex && el !== main);
+    const hasAnchor = (el) => SIDE_COLUMN_ANCHORS.some((sel) => {
+      try {
+        return el.matches(sel) || !!el.querySelector(sel);
+      } catch {
+        return false;
+      }
+    });
+    const isRightOfMain = (el) => {
+      const r = el.getBoundingClientRect();
+      const m = main.getBoundingClientRect();
+      return r.width > 0 && r.left >= m.right - 8;
+    };
+    const side = candidates.find((el) => hasAnchor(el)) || (candidates.length === 1 && isRightOfMain(candidates[0]) ? candidates[0] : void 0);
+    return side ? { container, main, side } : null;
+  };
+  var inspectHomeSidebar = () => {
+    const container = dom(".Topstory-container") || dom(".Topstory");
+    const mainNode = container ? dom(".Topstory-mainColumn", container) || dom(".Topstory-mainColumn") : void 0;
+    const columns = locateColumns();
+    return {
+      容器已找到: !!container,
+      主列已找到: !!mainNode,
+      右栏列已识别: !!columns?.side,
+      右栏类名: columns?.side.className || "",
+      右栏宽度: columns ? Math.round(columns.side.getBoundingClientRect().width) : 0,
+      主列宽度: mainNode ? Math.round(mainNode.getBoundingClientRect().width) : 0,
+      折叠已生效: document.documentElement.classList.contains(CLASS_NO_SIDEBAR2)
+    };
+  };
+  var containerObserver;
+  var observerTimer2;
+  var stopWatching2 = () => {
+    containerObserver?.disconnect();
+    containerObserver = void 0;
+    if (observerTimer2) clearTimeout(observerTimer2);
+    observerTimer2 = void 0;
+  };
+  var watchForContainerOnce = () => {
+    if (containerObserver || typeof MutationObserver === "undefined") return;
+    if (!["/", "/follow", "/hot", "/zvideo"].includes(location.pathname)) return;
+    const observer = new MutationObserver(() => {
+      if (!dom(".Topstory-container") && !dom(".Topstory")) return;
+      stopWatching2();
+      syncHomeSidebarCollapse().catch(() => void 0);
+    });
+    containerObserver = observer;
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    observerTimer2 = setTimeout(stopWatching2, 1e4);
+  };
+  var syncHomeSidebarCollapse = async () => {
+    try {
+      const config = await myStorage.getConfig();
+      const html = document.documentElement;
+      const allHidden = HOME_SIDEBAR_KEYS.every((key) => !!config[key]);
+      if (!allHidden) {
+        stopWatching2();
+        html.classList.remove(CLASS_NO_SIDEBAR2);
+        clearSideColumnMarks();
+        return;
+      }
+      const columns = locateColumns();
+      if (!columns) {
+        html.classList.remove(CLASS_NO_SIDEBAR2);
+        clearSideColumnMarks();
+        watchForContainerOnce();
+        return;
+      }
+      stopWatching2();
+      html.classList.remove(CLASS_NO_SIDEBAR2);
+      clearSideColumnMarks();
+      columns.side.classList.add(CLASS_SIDE_COLUMN);
+      html.classList.add(CLASS_NO_SIDEBAR2);
+    } catch {
     }
   };
   var changeSizeBeforeResize = async () => {
@@ -3314,6 +3550,7 @@
     ...CONFIG_HIDDEN_DEFAULT,
     ...CONFIG_FILTER_DEFAULT,
     ...CONFIG_SUSPENSION,
+    hiddenGlobalSideRail: false,
     fetchInterceptStatus: true,
     customizeCss: "",
     answerOpen: "default" /* 默认 */,
@@ -4235,7 +4472,7 @@
         {
           label: "隐藏修改器弹出图标 ⚙︎",
           value: "hiddenOpenButton",
-          css: "#CTZ_OPEN_CLOSE{display:none!important;}"
+          css: "#CTZ_OPEN_CLOSE,#CTZ_GLOBAL_RAIL_TOGGLE{display:none!important;}"
         }
       ],
       [
@@ -5437,6 +5674,7 @@
   };
   var BASIC_SHOW = [
     [
+      { label: '<b style="color:#ec7259">一键关闭左侧悬浮栏（所有页面生效）</b>', value: "hiddenGlobalSideRail" },
       { label: `列表 - 标题类别显示<b style="color: #ec7259">「问题」</b>`, value: "listTitleTagQuestion" },
       { label: `列表 - 标题类别显示<b style="color: #00965e">「文章」</b>`, value: "listTitleTagArticle" },
       { label: `列表 - 标题类别显示<b style="color: #12c2e9">「视频」</b>`, value: "listTitleTagVideo" },
@@ -5557,6 +5795,9 @@
     setTimeout(() => syncHiddenCardsByTitle().catch(() => void 0), 1500);
     syncHomeSidebarCollapse().catch(() => void 0);
     setTimeout(() => syncHomeSidebarCollapse().catch(() => void 0), 1500);
+    syncArticleSidebarCollapse().catch(() => void 0);
+    syncGlobalRailCollapse().catch(() => void 0);
+    setTimeout(() => syncArticleSidebarCollapse().catch(() => void 0), 1500);
   };
   var appendHomeLink = (domMain = document.body) => {
     const userInfo = store.getUserInfo();
@@ -5668,6 +5909,8 @@
       syncHiddenCardsByTitle().catch(() => void 0);
       syncHasFallbackClasses();
       syncHomeSidebarCollapse().catch(() => void 0);
+      syncArticleSidebarCollapse().catch(() => void 0);
+      syncGlobalRailCollapse().catch(() => void 0);
       pathnameHasFn({
         collection: () => myCollectionExport.init()
       });
@@ -5790,6 +6033,9 @@
       await appendHiddenStyle();
       await syncHiddenCardsByTitle(true);
       await syncHomeSidebarCollapse();
+      await mySize.change();
+      await syncArticleSidebarCollapse();
+      await syncGlobalRailCollapse();
       return;
     }
     if (doCssVersion.includes(name)) {
@@ -6073,6 +6319,8 @@
       appendHiddenStyle();
       myBackground.init();
       mySize.init();
+      syncGlobalRailCollapse().catch(() => void 0);
+      syncArticleSidebarCollapse().catch(() => void 0);
       checkThemeDarkOrLight();
       changeVideoStyle();
       dom("html").classList.add(/www\.zhihu\.com\/column/.test(href) ? "zhuanlan" : EXTRA_CLASS_HTML[hostname]);
@@ -6179,6 +6427,8 @@
         }
       }
       syncHasFallbackClasses();
+      syncGlobalRailCollapse().catch(() => void 0);
+      syncArticleSidebarCollapse().catch(() => void 0);
       if (!isSupportHasSelector()) {
         fnLog("当前浏览器不支持 CSS :has()，已启用 @supports 类名回退：宽度与主页布局补丁仍可生效；若个别细节缺失，可用面板「运行自检」定位");
       }
@@ -6212,6 +6462,8 @@
       historyToChangePathname();
       syncHasFallbackClasses();
       syncHomeSidebarCollapse().catch(() => void 0);
+      syncArticleSidebarCollapse().catch(() => void 0);
+      syncGlobalRailCollapse().catch(() => void 0);
       myListenList.reset();
       myListenSearchListItem.reset();
       myListenAnswer.reset();

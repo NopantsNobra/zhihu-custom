@@ -1,6 +1,6 @@
 import { canCopy } from '../components/copy';
 import { syncHiddenCardsByTitle } from '../components/hidden';
-import { syncHomeSidebarCollapse } from '../components/size';
+import { syncArticleSidebarCollapse, syncGlobalRailCollapse, syncHomeSidebarCollapse } from '../components/size';
 import { previewGIF } from '../components/image';
 import { fnJustNumberInAction } from '../components/just-number';
 import { initLinkChanger } from '../components/link';
@@ -129,6 +129,8 @@ async function runHeavyTasks() {
     // 动态加载/回退路由后重新判定右栏是否需要折叠，并刷新 :has() 降级类名
     syncHasFallbackClasses();
     syncHomeSidebarCollapse().catch(() => undefined);
+    syncArticleSidebarCollapse().catch(() => undefined);
+    syncGlobalRailCollapse().catch(() => undefined);
     pathnameHasFn({
       collection: () => myCollectionExport.init(),
     });

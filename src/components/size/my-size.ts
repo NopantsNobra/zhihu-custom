@@ -333,8 +333,54 @@ export const mySize = {
       questionLayoutCss('fallback') +
       `}`;
 
+    /**
+     * v5.30 布局补丁 A：全局「一键关闭左侧悬浮栏」（所有页面）。
+     * 由 hiddenGlobalSideRail 控制，syncGlobalRailCollapse() 给 html 打 ctz-no-rail 后生效。
+     * 四条规则与问题页同一思路：把 flex 骨架改成块级容器、隐藏非内容子元素、内容列与 main.App-main 撑满，
+     * 前缀是纯类名，放在 @supports 之外，不需要 :has() 主/回退双分支。
+     */
+    const xxxGlobalRail =
+      // 主方案：:has() 结构选择器，支持该选择器的浏览器覆盖面最广（首页/问题页/文章页骨架都能命中）
+      `html.ctz-no-rail div:has(> aside):has(main.App-main){display:block!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}` +
+      `html.ctz-no-rail div:has(> aside):has(main.App-main) > :not(:has(main.App-main)){display:none!important}` +
+      `html.ctz-no-rail div:has(> aside):has(main.App-main) > :has(main.App-main){display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important}` +
+      // 兜底方案：类名由 article-layout.ts 的 syncGlobalRailCollapse() 维护。
+      // 规则本身不含 :has()，因此 Firefox < 121 等不支持 :has() 的浏览器也能隐藏 rail、移除占位，
+      // 不会出现「按钮改了文案但 rail 还在」的半生效状态。与主方案声明一致，可同时命中。
+      `html.ctz-no-rail .ctz-global-rail-shell{display:block!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;box-sizing:border-box!important}` +
+      `html.ctz-no-rail .ctz-global-rail-placeholder{display:none!important}` +
+      `html.ctz-no-rail .ctz-global-rail-content{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important}` +
+      `html.ctz-no-rail main.App-main{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;box-sizing:border-box!important}` +
+      // 首页：v5.25.1 为左 rail 预留的 100px 反向拉宽（width:calc(100%+100px); margin-left:-100px）
+      // 在 rail 被总控隐藏后失去补偿对象，会让主列整体左移、窄视口被裁到屏幕外，必须归零。
+      // 与 xxxHomeNoSidebar 的同名规则声明一致，两者同时激活也不会打架。
+      `html.ctz-no-rail .Topstory-container{width:100%!important;max-width:100%!important;margin-left:0!important;margin-right:0!important;box-sizing:border-box!important}`;
+
+    /**
+     * v5.30 布局补丁 B：文章页右栏全部隐藏后移除右栏列及占位，正文自适应填满并居中。
+     * 定位与类名由 article-layout.ts 的 syncArticleSidebarCollapse() 维护（ctz-article-row /
+     * ctz-article-side-column / ctz-article-main-col），折叠态类 ctz-article-no-sidebar 挂在 html 上。
+     * 关键坑：div.Post-content 自带 min-width:1032px，不清掉窄窗口下 margin:auto 会把剩余空间算成偏移，
+     * 因此下面 .Post-content 的 min-width:0!important 一行必须保留。
+     * 宽度用 versionSizeArticle（兼容百分比模式），不硬编码 1153px。
+     */
+    const xxxArticleNoSidebar =
+      `html.ctz-article-no-sidebar .ctz-article-side-column{display:none!important}` +
+      `html.ctz-article-no-sidebar .ctz-article-row{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important}` +
+      `html.ctz-article-no-sidebar .ctz-article-main-col{width:100%!important;max-width:100%!important;min-width:0!important;padding-left:0!important;padding-right:0!important;box-sizing:border-box!important}` +
+      `html.ctz-article-no-sidebar .ctz-article-main-col > *{width:100%!important}` +
+      `html.ctz-article-no-sidebar .ctz-article-main-col > * > *{max-width:100%!important}` +
+      `html.ctz-article-no-sidebar .Post-content{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}` +
+      `html.ctz-article-no-sidebar article.Post-Main,html.ctz-article-no-sidebar .Post-RichTextContainer,html.ctz-article-no-sidebar .Post-Title,html.ctz-article-no-sidebar .Post-Header,html.ctz-article-no-sidebar .Recommendations-Main{width:min(${versionSizeArticle},100%)!important;max-width:100%!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important}` +
+      `html.ctz-article-no-sidebar .Post-NormalSub>div,html.ctz-article-no-sidebar .Post-Row-Content{width:min(${versionSizeArticle},100%)!important;max-width:100%!important;min-width:0!important}` +
+      `html.ctz-article-no-sidebar article.Post-Main{max-width:100vw!important}` +
+      // 覆盖 xxxWidth 末尾的 min-width:600px!important（VERSION_MIN_WIDTH），折叠态不保留最小宽度下限
+      `html.ctz-article-no-sidebar .Post-NormalSub>div,html.ctz-article-no-sidebar .Post-Row-Content,html.ctz-article-no-sidebar .css-pi1fiy,html.ctz-article-no-sidebar .Post-content{min-width:0!important}` +
+      // 右栏消失后正文居中，Post-SideActions 的 right 去掉为右栏预留的 +150px 补偿，跟随 min(版心,100%) 居中版心
+      `html.ctz-article-no-sidebar .zhuanlan .Post-SideActions{right:calc(50vw - min(${versionSizeArticle},100%)/2)!important}`;
+
     return xxxFontSize + xxxHighlight + xxxImage + xxxListMore + xxxShoppingLink + xxxShoppingLink + xxxSusHeader + xxxSusHomeTab + xxxTitleTag + xxxVideo + xxxWidth +
       `html:has(.Topstory-container) :has(>a[href$="/column-square"]):has(>a[href$="/ring-feeds"]){display:none!important}html:has(.Topstory-container) .Topstory-container{width:calc(100% + 100px)!important;max-width:none!important;margin-left:-100px!important;justify-content:center!important}` +
-      xxxQuestionPageHas + xxxHomeNoSidebar + xxxHasFallback;
+      xxxQuestionPageHas + xxxHomeNoSidebar + xxxHasFallback + xxxGlobalRail + xxxArticleNoSidebar;
   },
 };
