@@ -1,5 +1,4 @@
-import { dom, domC, fnAppendStyle, myStorage } from '../../tools';
-import { mySize } from './my-size';
+import { dom, myStorage } from '../../tools';
 
 /**
  * 文章页右栏模块对应的配置开关，与 hidden/configs/article.ts 的「文章专栏」分组一致。
@@ -27,18 +26,6 @@ const CLASS_RAIL_PLACEHOLDER = 'ctz-global-rail-placeholder';
 const CLASS_RAIL_CONTENT = 'ctz-global-rail-content';
 /** 知乎新版右栏列内固定的无障碍锚点，用于精确定位右栏 */
 const SIDE_ANCHOR_SELECTOR = 'a[aria-label="边栏锚点"]';
-
-/** 页面可见的一键按钮与其专属样式节点 id */
-const TOGGLE_ID = 'CTZ_GLOBAL_RAIL_TOGGLE';
-const TOGGLE_STYLE_ID = 'CTZ_STYLE_GLOBAL_RAIL_TOGGLE';
-
-/** 一键按钮样式，复用齿轮按钮的 fixed / 圆角 / 边框观感，放在齿轮左侧互不遮挡 */
-const TOGGLE_CSS =
-  `#CTZ_GLOBAL_RAIL_TOGGLE{position:fixed;right:56px;bottom:4px;z-index:200;height:40px;padding:0 12px;display:flex;align-items:center;justify-content:center;background:#f6f6f6;color:#333;border:2px solid #ebebeb;border-radius:8px;font-size:12px;line-height:1;cursor:pointer;opacity:.85;user-select:none;box-sizing:border-box;white-space:nowrap;outline:none}` +
-  `#CTZ_GLOBAL_RAIL_TOGGLE:hover{opacity:1}` +
-  `#CTZ_GLOBAL_RAIL_TOGGLE:focus-visible{box-shadow:0 0 0 2px #0066ff}` +
-  `#CTZ_GLOBAL_RAIL_TOGGLE.ctz-rail-off{background:#ec7259;color:#fff;border-color:#ec7259}` +
-  `@media (prefers-color-scheme: dark){#CTZ_GLOBAL_RAIL_TOGGLE:not(.ctz-rail-off){background:#3a3a3a;color:#f0f0f0;border-color:#555}}`;
 
 export interface IArticleColumns {
   row: HTMLElement;
@@ -287,55 +274,9 @@ export const syncArticleSidebarCollapse = async (): Promise<void> => {
   }
 };
 
-let lastToggleChecked: boolean | undefined;
-
-/** 幂等创建页面右下角的一键按钮；面板渲染完成后才创建，避免早期 DOM 缺失 */
-const ensureToggleButton = (): HTMLElement | undefined => {
-  if (!document.body || !document.getElementById('CTZ_MAIN')) return undefined;
-  const existing = document.getElementById(TOGGLE_ID) as HTMLElement | undefined;
-  if (existing) return existing;
-
-  fnAppendStyle(TOGGLE_STYLE_ID, TOGGLE_CSS);
-  const button = domC('div', {
-    id: TOGGLE_ID,
-    title: '点击切换：关闭 / 恢复知乎左侧悬浮栏（所有页面生效）',
-    innerText: '左悬浮栏：已开启',
-    role: 'button',
-    tabIndex: 0,
-  }) as HTMLElement;
-
-  const onClick = async (event: Event): Promise<void> => {
-    event.preventDefault();
-    event.stopPropagation();
-    try {
-      const config = await myStorage.getConfig();
-      const next = !config.hiddenGlobalSideRail;
-      await myStorage.updateConfigItem('hiddenGlobalSideRail', next);
-      // 与面板 hidden 分支同一条重建链路：重建尺寸样式 → 重判文章页右栏 → 重判全局 rail
-      await mySize.change();
-      await syncArticleSidebarCollapse();
-      await syncGlobalRailCollapse();
-      // 同步面板里同名 checkbox，保证两处开关状态一致
-      const panelInput = document.querySelector<HTMLInputElement>('input[name="hiddenGlobalSideRail"]');
-      if (panelInput) panelInput.checked = next;
-    } catch {
-      // 一键切换异常不能影响脚本其他功能
-    }
-  };
-  button.addEventListener('click', onClick);
-  button.addEventListener('keydown', (event: KeyboardEvent) => {
-    if (event.key === 'Enter' || event.key === ' ') onClick(event);
-  });
-  document.body.appendChild(button);
-  lastToggleChecked = undefined;
-  return button;
-};
-
 /**
  * 同步全局「一键关闭左侧悬浮栏」状态：按 hiddenGlobalSideRail 给 html 加/删 ctz-no-rail，
- * 并保证页面右下角一键按钮存在且文案/状态与配置一致（刷新后从配置恢复）。
- * 「隐藏修改器弹出图标」开启时，按钮由隐藏样式体系里的
- * #CTZ_OPEN_CLOSE,#CTZ_GLOBAL_RAIL_TOGGLE{display:none!important} 一并隐藏，无需额外逻辑。
+ * 并维护骨架/占位节点的降级类名；开关只在设置面板内提供（刷新后从配置恢复）。
  */
 export const syncGlobalRailCollapse = async (): Promise<void> => {
   try {
@@ -352,13 +293,6 @@ export const syncGlobalRailCollapse = async (): Promise<void> => {
       html.classList.remove(CLASS_NO_RAIL);
       clearGlobalRailMarks();
     }
-
-    const button = ensureToggleButton();
-    if (!button || lastToggleChecked === enabled) return;
-    lastToggleChecked = enabled;
-    button.innerText = enabled ? '左悬浮栏：已关闭' : '左悬浮栏：已开启';
-    button.classList.toggle('ctz-rail-off', enabled);
-    button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
   } catch {
     // 总控逻辑异常不能影响脚本其他功能
   }
